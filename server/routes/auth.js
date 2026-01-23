@@ -175,4 +175,29 @@ router.get('/me', async (req, res) => {
   }
 });
 
+// Seed admin account (one-time setup)
+router.post('/seed-admin', async (req, res) => {
+  try {
+    // Check if admin already exists
+    const existingAdmin = await pool.query('SELECT id FROM users WHERE email = $1', ['admin@nourishai.com']);
+    if (existingAdmin.rows.length > 0) {
+      return res.json({ message: 'Admin account already exists' });
+    }
+
+    // Create admin account with password 'admin'
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash('admin', salt);
+
+    await pool.query(
+      'INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3)',
+      ['Admin', 'admin@nourishai.com', passwordHash]
+    );
+
+    res.json({ message: 'Admin account created successfully. Login with admin@nourishai.com / admin' });
+  } catch (error) {
+    console.error('Seed admin error:', error);
+    res.status(500).json({ error: 'Failed to create admin account' });
+  }
+});
+
 export default router;

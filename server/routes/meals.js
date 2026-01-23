@@ -92,6 +92,21 @@ router.get('/history', authenticate, async (req, res) => {
   }
 });
 
+// Get recent individual meals (for profile)
+router.get('/recent', authenticate, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM meal_logs WHERE user_id = $1 ORDER BY logged_at DESC LIMIT 50',
+      [req.userId]
+    );
+
+    res.json({ meals: result.rows });
+  } catch (error) {
+    console.error('Error fetching recent meals:', error);
+    res.status(500).json({ error: 'Failed to fetch recent meals' });
+  }
+});
+
 // Add to favorites
 router.post('/favorites', authenticate, async (req, res) => {
   const { foodName, nutritionData } = req.body;

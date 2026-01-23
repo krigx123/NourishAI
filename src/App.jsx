@@ -15,6 +15,7 @@ import NutritionTracker from './pages/NutritionTracker';
 import HealthInsights from './pages/HealthInsights';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
+import MealLogs from './pages/MealLogs';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }) {
@@ -30,6 +31,33 @@ function ProtectedRoute({ children }) {
   }
   
   return isAuthenticated ? children : <Navigate to="/login" />;
+}
+
+// Admin-only Route wrapper
+function AdminRoute({ children }) {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="loading-screen">
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+  
+  // Check if user is admin (admin@nourishai.com)
+  const isAdmin = user?.email === 'admin@nourishai.com';
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+  
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" />;
+  }
+  
+  return children;
 }
 
 // Main App content (need to be inside AuthProvider to use useAuth)
@@ -80,7 +108,12 @@ function AppContent() {
             <Route path="/tracker" element={<NutritionTracker />} />
             <Route path="/insights" element={<HealthInsights />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/history" element={<MealLogs />} />
+            <Route path="/admin" element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            } />
           </Route>
 
           {/* Fallback */}

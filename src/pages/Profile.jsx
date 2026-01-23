@@ -86,7 +86,38 @@ function Profile() {
   const handleExportData = async () => {
     try {
       const data = await userAPI.exportData();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      
+      // Create a simplified, human-readable export
+      const simplifiedData = {
+        exportedAt: new Date().toLocaleString(),
+        userInfo: {
+          name: data.user?.name,
+          email: data.user?.email,
+          memberSince: new Date(data.user?.created_at).toLocaleDateString()
+        },
+        profile: data.profile ? {
+          age: data.profile.age,
+          weight: data.profile.weight ? `${data.profile.weight} kg` : null,
+          height: data.profile.height ? `${data.profile.height} cm` : null,
+          gender: data.profile.gender,
+          dietType: data.profile.diet_type,
+          activityLevel: data.profile.activity_level,
+          targetCalories: data.profile.target_calories,
+          goals: data.profile.goals,
+          allergies: data.profile.allergies
+        } : null,
+        mealsSummary: {
+          totalMealsLogged: data.mealLogs?.length || 0,
+          meals: data.mealLogs?.map(m => ({
+            food: m.food_name,
+            calories: m.calories,
+            date: new Date(m.logged_at).toLocaleDateString()
+          })) || []
+        },
+        favorites: data.favorites?.map(f => f.food_name) || []
+      };
+      
+      const blob = new Blob([JSON.stringify(simplifiedData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

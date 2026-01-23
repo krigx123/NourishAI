@@ -15,7 +15,10 @@ NourishAI is a modern, full-stack AI-powered nutrition tracking and diet recomme
 ## ✨ Features
 
 ### 🍽️ Meal Analysis
-Analyze Indian meals instantly using AI to get detailed nutritional breakdowns including calories, macros, vitamins, and health scores.
+Analyze Indian meals instantly using **Local Hybrid AI** (MobileNet + Pre-indexed Dataset Mapping) and get detailed nutritional breakdowns.
+- **Offline Capable**: Runs entirely in the browser using MobileNet.
+- **Dataset Integration**: Prioritizes local dataset matches for 100% accuracy on known files.
+- **Multi-Item Tracking**: Scan multiple items to build a complete meal log.
 
 ### 📊 Nutrition Tracking
 Track your daily nutritional intake with intuitive charts and progress indicators.
@@ -28,6 +31,9 @@ Receive AI-powered insights and suggestions to improve your eating habits and ac
 
 ### 📈 Progress Tracking
 Monitor your health journey with comprehensive analytics and trend visualizations.
+
+### 📜 Meal History
+Browse your complete meal logging history with search and filtering capabilities. Combined meals appear as single entries with total nutrition.
 
 ### 🔐 User Authentication
 Secure JWT-based authentication with personalized onboarding collecting age, weight, height, goals, and dietary preferences.
@@ -67,7 +73,13 @@ Real-time system monitoring with database stats, recent user activity, and API h
    npm install
    ```
 
-4. **Configure environment variables**
+4. **Dataset Setup (Optional)**
+   To enable 100% accurate detection for the specific "Indian Food Images" dataset:
+   - Place your dataset in a root-level `images/` folder.
+   - The app uses `src/data/datasetMapping.json` to match filenames from this folder.
+   - Without the dataset, the app falls back to MobileNet AI prediction.
+
+5. **Configure environment variables**
    
    Create a `.env` file in the `server` folder:
    ```env

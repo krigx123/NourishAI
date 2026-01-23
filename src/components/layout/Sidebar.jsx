@@ -7,26 +7,36 @@ import {
   Lightbulb, 
   User, 
   Settings,
-  Leaf
+  Leaf,
+  History
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
 /**
  * Sidebar navigation for dashboard pages
+ * Admin Panel is only visible to admin users
  */
 function Sidebar() {
   const { user } = useAuth();
+
+  // Check if user is admin (email is admin@nourishai.com)
+  const isAdmin = user?.email === 'admin@nourishai.com';
 
   const menuItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/analysis', icon: UtensilsCrossed, label: 'Meal Analysis' },
     { path: '/diet', icon: ClipboardList, label: 'Diet Plans' },
+    { path: '/history', icon: History, label: 'Meal History' },
     { path: '/tracker', icon: BarChart3, label: 'Nutrition Tracker' },
     { path: '/insights', icon: Lightbulb, label: 'Health Insights' },
     { path: '/profile', icon: User, label: 'Profile' },
-    { path: '/admin', icon: Settings, label: 'Admin Panel' },
   ];
+
+  // Add admin panel only for admin users
+  if (isAdmin) {
+    menuItems.push({ path: '/admin', icon: Settings, label: 'Admin Panel' });
+  }
 
   // Get user initials for avatar
   const getInitials = () => {
@@ -61,7 +71,7 @@ function Sidebar() {
           <div className="user-avatar">{getInitials()}</div>
           <div className="user-info">
             <span className="user-name">{user?.name || 'User'}</span>
-            <span className="user-role">Premium User</span>
+            <span className="user-role">{isAdmin ? 'Admin' : 'Premium User'}</span>
           </div>
         </div>
       </div>

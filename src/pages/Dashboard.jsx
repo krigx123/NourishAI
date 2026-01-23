@@ -11,6 +11,7 @@ import {
   BarChart3,
   Lightbulb,
   Plus,
+  Minus,
   TrendingUp
 } from 'lucide-react';
 import { Card, Button, ProgressBar } from '../components/ui';
@@ -28,55 +29,72 @@ function Dashboard() {
   const [dashboardData, setDashboardData] = useState(null);
   const [weeklyData, setWeeklyData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [waterLoading, setWaterLoading] = useState(false);
+
+  const fetchDashboardData = async () => {
+    try {
+      const [dashboard, history] = await Promise.all([
+        userAPI.getDashboard(),
+        mealsAPI.getHistory()
+      ]);
+      
+      setDashboardData(dashboard);
+      
+      // Transform history for chart
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const chartData = history.history?.map(item => ({
+        day: days[new Date(item.date).getDay()],
+        calories: parseInt(item.total_calories) || 0
+      })).reverse() || [];
+      
+      // Fill with default data if no history
+      if (chartData.length === 0) {
+        const today = new Date();
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(today);
+          d.setDate(d.getDate() - i);
+          chartData.push({
+            day: days[d.getDay()],
+            calories: 0
+          });
+        }
+      }
+      
+      setWeeklyData(chartData);
+    } catch (error) {
+      console.error('Error fetching dashboard:', error);
+      // Set default values on error
+      setDashboardData({
+        dailyCalories: { consumed: 0, goal: user?.targetCalories || 2000, percentage: 0 },
+        nutritionScore: 50,
+        healthStatus: 'Start Logging',
+        waterIntake: { current: 0, goal: 8 },
+        streak: 0
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [dashboard, history] = await Promise.all([
-          userAPI.getDashboard(),
-          mealsAPI.getHistory()
-        ]);
-        
-        setDashboardData(dashboard);
-        
-        // Transform history for chart
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const chartData = history.history?.map(item => ({
-          day: days[new Date(item.date).getDay()],
-          calories: parseInt(item.total_calories) || 0
-        })).reverse() || [];
-        
-        // Fill with default data if no history
-        if (chartData.length === 0) {
-          const today = new Date();
-          for (let i = 6; i >= 0; i--) {
-            const d = new Date(today);
-            d.setDate(d.getDate() - i);
-            chartData.push({
-              day: days[d.getDay()],
-              calories: 0
-            });
-          }
-        }
-        
-        setWeeklyData(chartData);
-      } catch (error) {
-        console.error('Error fetching dashboard:', error);
-        // Set default values on error
-        setDashboardData({
-          dailyCalories: { consumed: 0, goal: user?.targetCalories || 2000, percentage: 0 },
-          nutritionScore: 50,
-          healthStatus: 'Start Logging',
-          waterIntake: { current: 0, goal: 8 },
-          streak: 0
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchDashboardData();
   }, [user]);
+
+  const handleAddWater = async () => {
+    if (waterLoading) return;
+    setWaterLoading(true);
+    try {
+      const response = await mealsAPI.logWater(1);
+      setDashboardData(prev => ({
+        ...prev,
+        waterIntake: { ...prev.waterIntake, current: response.todayTotal }
+      }));
+    } catch (error) {
+      console.error('Error logging water:', error);
+    } finally {
+      setWaterLoading(false);
+    }
+  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -198,13 +216,23 @@ function Dashboard() {
                 <span className="value-main">{waterIntake?.current || 0}</span>
                 <span className="value-sub">/ {waterIntake?.goal || 8} glasses</span>
               </div>
-              <ProgressBar 
-                value={waterIntake?.current || 0} 
-                max={waterIntake?.goal || 8} 
-                variant="secondary"
-                size="small"
-                showPercentage={false}
-              />
+              <div className="water-controls">
+                <button 
+                  className="water-btn add"
+                  onClick={handleAddWater}
+                  disabled={waterLoading}
+                  title="Add 1 glass of water"
+                >
+                  <Plus size={16} />
+                </button>
+                <ProgressBar 
+                  value={waterIntake?.current || 0} 
+                  max={waterIntake?.goal || 8} 
+                  variant="secondary"
+                  size="small"
+                  showPercentage={false}
+                />
+              </div>
             </div>
           </Card>
 

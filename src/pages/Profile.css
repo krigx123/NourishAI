@@ -19,11 +19,49 @@
   gap: var(--space-3);
 }
 
-/* Profile Grid */
+/* Profile Grid - Now single column for better width */
 .profile-grid {
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 1fr;
   gap: var(--space-6);
+}
+
+/* Full-width variant for profile content */
+.profile-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* Info Card needs more width */
+.info-card {
+  padding: var(--space-6);
+}
+
+.info-card h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 1.125rem;
+  margin-bottom: var(--space-6);
+}
+
+.info-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Profile Card */

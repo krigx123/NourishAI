@@ -125,6 +125,15 @@ export const mealsAPI = {
     return data;
   },
 
+  getRecentMeals: async () => {
+    const response = await fetch(`${API_BASE_URL}/meals/recent`, {
+      headers: getAuthHeaders()
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+    return data;
+  },
+
   addFavorite: async (foodName, nutritionData) => {
     const response = await fetch(`${API_BASE_URL}/meals/favorites`, {
       method: 'POST',
@@ -166,4 +175,39 @@ export const mealsAPI = {
   }
 };
 
-export default { authAPI, userAPI, mealsAPI };
+// Food Recognition API (LogMeal)
+export const foodAPI = {
+  recognizeImage: async (imageBase64) => {
+    const response = await fetch(`${API_BASE_URL}/food/recognize`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ imageBase64 })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      if (data.useFallback) {
+        return { success: false, useFallback: true, error: data.error };
+      }
+      throw new Error(data.error);
+    }
+    return data;
+  },
+
+  analyzeImage: async (imageBase64) => {
+    const response = await fetch(`${API_BASE_URL}/food/analyze-image`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ imageBase64 })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      if (data.useFallback) {
+        return { success: false, useFallback: true, error: data.error };
+      }
+      throw new Error(data.error);
+    }
+    return data;
+  }
+};
+
+export default { authAPI, userAPI, mealsAPI, foodAPI };

@@ -1,12 +1,14 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Leaf, Menu, X, LogOut, User } from 'lucide-react';
 import { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import './Navbar.css';
 
 /**
  * Main navigation bar component
  */
 function Navbar({ isAuthenticated, onLogout }) {
+  const { user } = useAuth();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -52,6 +54,12 @@ function Navbar({ isAuthenticated, onLogout }) {
                 Tracker
               </Link>
               <Link 
+                to="/history" 
+                className={`nav-link ${isActive('/history') ? 'active' : ''}`}
+              >
+                History
+              </Link>
+              <Link 
                 to="/insights" 
                 className={`nav-link ${isActive('/insights') ? 'active' : ''}`}
               >
@@ -72,7 +80,7 @@ function Navbar({ isAuthenticated, onLogout }) {
             <>
               <Link to="/profile" className="nav-profile">
                 <User size={18} />
-                <span className="profile-name">Priya</span>
+                <span className="profile-name">{user?.name?.split(' ')[0] || 'User'}</span>
               </Link>
               <button onClick={onLogout} className="nav-logout">
                 <LogOut size={18} />

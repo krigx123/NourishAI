@@ -6,6 +6,7 @@ import authRoutes from './routes/auth.js';
 import mealsRoutes from './routes/meals.js';
 import usersRoutes from './routes/users.js';
 import adminRoutes from './routes/admin.js';
+import foodRoutes from './routes/food.js';
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/meals', mealsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/food', foodRoutes);
 
 // Initialize database and start server
 async function startServer() {
