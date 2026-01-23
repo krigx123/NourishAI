@@ -1,0 +1,255 @@
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import pool from '../database.js';
+
+const router = express.Router();
+
+// Middleware to verify JWT
+const authenticate = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userId = decoded.userId;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+// Get user profile
+router.get('/profile', authenticate, async (req, res) => {
+  try {
+    const userResult = await pool.query(
+      'SELECT id, name, email, created_at FROM users WHERE id = $1',
+      [req.userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const profileResult = await pool.query(
+      'SELECT * FROM user_profiles WHERE user_id = $1',
+      [req.userId]
+    );
+
+    const user = userResult.rows[0];
+    const profile = profileResult.rows[0] || {};
+
+    res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      age: profile.age,
+      weight: parseFloat(profile.weight) || null,
+      height: parseFloat(profile.height) || null,
+      gender: profile.gender,
+      dietType: profile.diet_type,
+      allergies: profile.allergies || [],
+      goals: profile.goals || [],
+      activityLevel: profile.activity_level,
+      targetCalories: profile.target_calories,
+      joinedDate: user.created_at
+    });
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// Update user profile
+router.put('/profile', authenticate, async (req, res) => {
+  const { name, age, weight, height, gender, dietType, allergies, goals, activityLevel } = req.body;
+
+  try {
+    // Update user name if provided
+    if (name) {
+      await pool.query('UPDATE users SET name = $1 WHERE id = $2', [name, req.userId]);
+    }
+
+    // Calculate new target calories
+    let targetCalories = 2000;
+    if (weight && height && age && gender) {
+      let bmr;
+      if (gender === 'male') {
+        bmr = 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
+      } else {
+        bmr = 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
+      }
+      
+      const activityMultipliers = {
+        'Sedentary': 1.2,
+        'Light': 1.375,
+        'Moderate': 1.55,
+        'Active': 1.725,
+        'Very Active': 1.9
+      };
+      
+      targetCalories = Math.round(bmr * (activityMultipliers[activityLevel] || 1.55));
+      
+      if (goals && goals.includes('Weight Loss')) {
+        targetCalories -= 500;
+      } else if (goals && goals.includes('Muscle Gain')) {
+        targetCalories += 300;
+      }
+    }
+
+    // Update or insert profile
+    await pool.query(
+      `INSERT INTO user_profiles (user_id, age, weight, height, gender, diet_type, allergies, goals, activity_level, target_calories, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
+       ON CONFLICT (user_id) 
+       DO UPDATE SET age = $2, weight = $3, height = $4, gender = $5, diet_type = $6, 
+                     allergies = $7, goals = $8, activity_level = $9, target_calories = $10, updated_at = CURRENT_TIMESTAMP`,
+      [req.userId, age, weight, height, gender, dietType, allergies || [], goals || [], activityLevel, targetCalories]
+    );
+
+    res.json({ message: 'Profile updated successfully', targetCalories });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Get dashboard summary (personalized based on user data)
+router.get('/dashboard', authenticate, async (req, res) => {
+  try {
+    // Get user profile
+    const profileResult = await pool.query(
+      'SELECT * FROM user_profiles WHERE user_id = $1',
+      [req.userId]
+    );
+    const profile = profileResult.rows[0] || { target_calories: 2000 };
+
+    // Get today's meals
+    const mealsResult = await pool.query(
+      `SELECT COALESCE(SUM(calories), 0) as consumed_calories,
+              COALESCE(SUM(protein), 0) as protein,
+              COALESCE(SUM(carbs), 0) as carbs,
+              COALESCE(SUM(fats), 0) as fats
+       FROM meal_logs 
+       WHERE user_id = $1 AND DATE(logged_at) = CURRENT_DATE`,
+      [req.userId]
+    );
+
+    // Get today's water intake
+    const waterResult = await pool.query(
+      `SELECT COALESCE(SUM(glasses), 0) as glasses 
+       FROM water_logs 
+       WHERE user_id = $1 AND DATE(logged_at) = CURRENT_DATE`,
+      [req.userId]
+    );
+
+    // Get streak (consecutive days with meals logged)
+    const streakResult = await pool.query(
+      `WITH daily_logs AS (
+        SELECT DISTINCT DATE(logged_at) as log_date
+        FROM meal_logs
+        WHERE user_id = $1
+        ORDER BY log_date DESC
+      ),
+      streak_calc AS (
+        SELECT log_date,
+               log_date - (ROW_NUMBER() OVER (ORDER BY log_date DESC))::int AS streak_group
+        FROM daily_logs
+      )
+      SELECT COUNT(*) as streak
+      FROM streak_calc
+      WHERE streak_group = (SELECT streak_group FROM streak_calc WHERE log_date = CURRENT_DATE LIMIT 1)`,
+      [req.userId]
+    );
+
+    const consumed = parseInt(mealsResult.rows[0].consumed_calories) || 0;
+    const goal = profile.target_calories || 2000;
+    const percentage = Math.round((consumed / goal) * 100);
+
+    // Calculate nutrition score based on balance
+    const protein = parseFloat(mealsResult.rows[0].protein) || 0;
+    const carbs = parseFloat(mealsResult.rows[0].carbs) || 0;
+    const fats = parseFloat(mealsResult.rows[0].fats) || 0;
+    const total = protein + carbs + fats;
+    
+    let nutritionScore = 50;
+    if (total > 0) {
+      const proteinRatio = protein / total;
+      const carbRatio = carbs / total;
+      const fatRatio = fats / total;
+      
+      // Ideal ratios: 20-30% protein, 45-55% carbs, 20-35% fats
+      const proteinScore = proteinRatio >= 0.15 && proteinRatio <= 0.35 ? 30 : 15;
+      const carbScore = carbRatio >= 0.40 && carbRatio <= 0.60 ? 40 : 20;
+      const fatScore = fatRatio >= 0.15 && fatRatio <= 0.40 ? 30 : 15;
+      
+      nutritionScore = Math.min(100, proteinScore + carbScore + fatScore);
+    }
+
+    // Determine health status
+    let healthStatus = 'Good';
+    if (nutritionScore >= 80) healthStatus = 'Excellent';
+    else if (nutritionScore >= 60) healthStatus = 'Good';
+    else if (nutritionScore >= 40) healthStatus = 'Fair';
+    else healthStatus = 'Needs Improvement';
+
+    res.json({
+      dailyCalories: {
+        consumed,
+        goal,
+        percentage
+      },
+      nutritionScore,
+      healthStatus,
+      waterIntake: {
+        current: parseInt(waterResult.rows[0].glasses) || 0,
+        goal: 8
+      },
+      streak: parseInt(streakResult.rows[0]?.streak) || 0,
+      macros: {
+        protein,
+        carbs,
+        fats
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching dashboard:', error);
+    res.status(500).json({ error: 'Failed to fetch dashboard data' });
+  }
+});
+
+// Delete account
+router.delete('/account', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM users WHERE id = $1', [req.userId]);
+    res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
+
+// Export user data
+router.get('/export', authenticate, async (req, res) => {
+  try {
+    const userResult = await pool.query('SELECT name, email, created_at FROM users WHERE id = $1', [req.userId]);
+    const profileResult = await pool.query('SELECT * FROM user_profiles WHERE user_id = $1', [req.userId]);
+    const mealsResult = await pool.query('SELECT * FROM meal_logs WHERE user_id = $1', [req.userId]);
+    const favoritesResult = await pool.query('SELECT * FROM favorites WHERE user_id = $1', [req.userId]);
+
+    const exportData = {
+      user: userResult.rows[0],
+      profile: profileResult.rows[0],
+      mealLogs: mealsResult.rows,
+      favorites: favoritesResult.rows,
+      exportedAt: new Date().toISOString()
+    };
+
+    res.json(exportData);
+  } catch (error) {
+    console.error('Error exporting data:', error);
+    res.status(500).json({ error: 'Failed to export data' });
+  }
+});
+
+export default router;

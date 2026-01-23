@@ -2,9 +2,11 @@
 
 > Your Personal AI Nutritionist for Healthier Living
 
-NourishAI is a modern, AI-powered nutrition tracking and diet recommendation web application designed specifically for analyzing Indian meals and helping users achieve their health goals.
+NourishAI is a modern, full-stack AI-powered nutrition tracking and diet recommendation web application designed specifically for analyzing Indian meals and helping users achieve their health goals.
 
 ![React](https://img.shields.io/badge/React-18.3.1-61DAFB?style=flat-square&logo=react&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-22-339933?style=flat-square&logo=node.js&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?style=flat-square&logo=vite&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
@@ -19,7 +21,7 @@ Analyze Indian meals instantly using AI to get detailed nutritional breakdowns i
 Track your daily nutritional intake with intuitive charts and progress indicators.
 
 ### 🎯 Personalized Diet Plans
-Get customized diet recommendations based on your health goals, dietary preferences, and nutritional needs.
+Get customized diet recommendations based on your health goals, dietary preferences, and nutritional needs. Calorie targets are calculated using the Harris-Benedict equation based on your profile.
 
 ### 💡 Health Insights
 Receive AI-powered insights and suggestions to improve your eating habits and achieve your fitness goals.
@@ -27,8 +29,14 @@ Receive AI-powered insights and suggestions to improve your eating habits and ac
 ### 📈 Progress Tracking
 Monitor your health journey with comprehensive analytics and trend visualizations.
 
-### 🤖 AI Assistant
-Interactive AI-powered nutrition assistant to answer your diet and health questions.
+### 🔐 User Authentication
+Secure JWT-based authentication with personalized onboarding collecting age, weight, height, goals, and dietary preferences.
+
+### 👤 Dynamic User Data
+All user data is personalized - your name appears throughout the app, calorie goals are calculated from your profile, and diet plans adapt to your targets.
+
+### 🛠️ Admin Dashboard
+Real-time system monitoring with database stats, recent user activity, and API health checks.
 
 ---
 
@@ -38,6 +46,7 @@ Interactive AI-powered nutrition assistant to answer your diet and health questi
 
 - Node.js (v18 or higher)
 - npm or yarn
+- Supabase account (for PostgreSQL database)
 
 ### Installation
 
@@ -47,23 +56,45 @@ Interactive AI-powered nutrition assistant to answer your diet and health questi
    cd NourishAI
    ```
 
-2. **Install dependencies**
+2. **Install frontend dependencies**
    ```bash
    npm install
    ```
 
-3. **Start the development server**
+3. **Install backend dependencies**
+   ```bash
+   cd server
+   npm install
+   ```
+
+4. **Configure environment variables**
+   
+   Create a `.env` file in the `server` folder:
+   ```env
+   DATABASE_URL=your-supabase-connection-string
+   JWT_SECRET=your-secret-key
+   PORT=5000
+   ```
+
+5. **Start the backend server**
+   ```bash
+   cd server
+   node index.js
+   ```
+
+6. **Start the frontend (in a new terminal)**
    ```bash
    npm run dev
    ```
 
-4. **Open your browser**
+7. **Open your browser**
    Navigate to `http://localhost:5173`
 
 ---
 
 ## 🛠️ Tech Stack
 
+### Frontend
 | Technology | Purpose |
 |------------|---------|
 | **React 18** | Frontend UI library |
@@ -73,33 +104,72 @@ Interactive AI-powered nutrition assistant to answer your diet and health questi
 | **Lucide React** | Modern icon library |
 | **CSS3** | Custom styling with modern features |
 
+### Backend
+| Technology | Purpose |
+|------------|---------|
+| **Node.js + Express** | REST API server |
+| **PostgreSQL (Supabase)** | Cloud database |
+| **JWT** | Authentication tokens |
+| **bcryptjs** | Password hashing |
+
 ---
 
 ## 📁 Project Structure
 
 ```
 NourishAI/
-├── public/              # Static assets
+├── public/                  # Static assets
 ├── src/
 │   ├── components/
-│   │   ├── layout/      # Layout components (Navbar, Sidebar, Footer)
-│   │   └── ui/          # Reusable UI components (Button, Card, Modal)
-│   ├── data/            # Mock data and nutrition database
-│   ├── pages/           # Application pages
-│   │   ├── LandingPage.jsx
-│   │   ├── Dashboard.jsx
-│   │   ├── MealAnalysis.jsx
-│   │   ├── DietRecommendation.jsx
-│   │   ├── NutritionTracker.jsx
-│   │   ├── HealthInsights.jsx
-│   │   ├── Profile.jsx
-│   │   └── AdminDashboard.jsx
-│   ├── styles/          # Global styles
-│   ├── App.jsx          # Main application component
-│   └── main.jsx         # Application entry point
+│   │   ├── layout/          # Layout components (Navbar, Sidebar, Footer)
+│   │   └── ui/              # Reusable UI components (Button, Card, Modal)
+│   ├── context/
+│   │   └── AuthContext.jsx  # Global auth state management
+│   ├── services/
+│   │   └── api.js           # API client for backend communication
+│   ├── data/                # Mock data and nutrition database
+│   ├── pages/               # Application pages
+│   ├── styles/              # Global styles
+│   ├── App.jsx              # Main application component
+│   └── main.jsx             # Application entry point
+├── server/
+│   ├── routes/
+│   │   ├── auth.js          # Authentication endpoints
+│   │   ├── meals.js         # Meal logging & favorites
+│   │   ├── users.js         # User profile & dashboard
+│   │   └── admin.js         # Admin statistics
+│   ├── database.js          # PostgreSQL connection & schema
+│   ├── index.js             # Express server entry
+│   └── .env                 # Environment variables
 ├── package.json
 └── vite.config.js
 ```
+
+---
+
+## 🔌 API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - Register new user with profile
+- `POST /api/auth/login` - Login and get JWT token
+- `GET /api/auth/me` - Get current user
+
+### Meals
+- `POST /api/meals/log` - Log a meal
+- `GET /api/meals/today` - Get today's meals
+- `GET /api/meals/history` - Get weekly history
+- `POST /api/meals/favorites` - Add to favorites
+- `POST /api/meals/water` - Log water intake
+
+### Users
+- `GET /api/users/profile` - Get user profile
+- `PUT /api/users/profile` - Update profile
+- `GET /api/users/dashboard` - Get personalized dashboard data
+- `GET /api/users/export` - Export all user data
+- `DELETE /api/users/account` - Delete account
+
+### Admin
+- `GET /api/admin/stats` - Get system statistics
 
 ---
 
@@ -107,10 +177,10 @@ NourishAI/
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start development server |
+| `npm run dev` | Start frontend development server |
 | `npm run build` | Build for production |
 | `npm run preview` | Preview production build |
-| `npm run lint` | Run ESLint |
+| `cd server && node index.js` | Start backend server |
 
 ---
 

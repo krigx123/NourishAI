@@ -448,3 +448,36 @@
     flex-direction: column;
   }
 }
+
+/* Save Message */
+.save-message {
+  padding: 0.875rem 1.25rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.save-message.success {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #059669;
+}
+
+.save-message.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+}
+
+/* Spin animation for loader */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

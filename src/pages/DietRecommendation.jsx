@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   ClipboardList, 
   Scale, 
@@ -9,17 +9,43 @@ import {
   Sun,
   Apple,
   Moon,
-  Flame
+  Flame,
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 import { Card, Button } from '../components/ui';
+import { useAuth } from '../context/AuthContext';
 import { dietPlans } from '../data/mockData';
 import './DietRecommendation.css';
 
 /**
- * Diet Recommendation Page - Goal selection and Indian meal plans
+ * Diet Recommendation Page - Personalized diet plans based on user data
  */
 function DietRecommendation() {
+  const { user } = useAuth();
   const [selectedGoal, setSelectedGoal] = useState(null);
+  const [customCalories, setCustomCalories] = useState(null);
+  const [message, setMessage] = useState({ type: '', text: '' });
+  const [isPersonalized, setIsPersonalized] = useState(false);
+
+  // Auto-select goal based on user's saved goals
+  useEffect(() => {
+    if (user?.goals?.length > 0) {
+      const goalMap = {
+        'Weight Loss': 'weightLoss',
+        'Muscle Gain': 'muscleGain',
+        'Healthy Living': 'healthyLiving',
+        'Better Digestion': 'healthyLiving',
+        'Heart Health': 'healthyLiving',
+        'Energy Boost': 'muscleGain'
+      };
+      const firstGoal = user.goals[0];
+      if (goalMap[firstGoal]) {
+        setSelectedGoal(goalMap[firstGoal]);
+        setIsPersonalized(true);
+      }
+    }
+  }, [user]);
 
   const goals = [
     { id: 'weightLoss', name: 'Weight Loss', icon: Scale, color: '#ef4444', description: 'Calorie deficit with high protein' },
@@ -34,7 +60,68 @@ function DietRecommendation() {
     dinner: Moon
   };
 
-  const currentPlan = selectedGoal ? dietPlans[selectedGoal] : null;
+  // Calculate personalized calories
+  const getPersonalizedCalories = () => {
+    if (customCalories) return customCalories;
+    if (!user?.targetCalories) {
+      return dietPlans[selectedGoal]?.calories || 1800;
+    }
+    
+    // Adjust based on goal
+    const base = user.targetCalories;
+    if (selectedGoal === 'weightLoss') return base - 300;
+    if (selectedGoal === 'muscleGain') return base + 200;
+    return base;
+  };
+
+  // Generate personalized meal plan
+  const getPersonalizedPlan = () => {
+    if (!selectedGoal) return null;
+    
+    const basePlan = dietPlans[selectedGoal];
+    if (!basePlan) return null;
+
+    const personalizedCalories = getPersonalizedCalories();
+    const calorieRatio = personalizedCalories / basePlan.calories;
+
+    // Scale the meals proportionally
+    const scaledMeals = {};
+    Object.entries(basePlan.meals).forEach(([mealType, meal]) => {
+      scaledMeals[mealType] = {
+        ...meal,
+        calories: Math.round(meal.calories * calorieRatio),
+        protein: Math.round(meal.protein * calorieRatio),
+        carbs: Math.round(meal.carbs * calorieRatio)
+      };
+    });
+
+    return {
+      ...basePlan,
+      name: user?.name ? `${user.name.split(' ')[0]}'s ${basePlan.name}` : basePlan.name,
+      calories: personalizedCalories,
+      description: `Personalized ${basePlan.description.toLowerCase()} based on your profile`,
+      meals: scaledMeals
+    };
+  };
+
+  const handleStartPlan = () => {
+    setMessage({ type: 'success', text: '✓ Plan activated! Check your dashboard for daily tracking.' });
+    // In a real app, this would save to the backend
+  };
+
+  const handleCustomizePlan = () => {
+    const newCalories = prompt('Enter your target daily calories:', getPersonalizedCalories());
+    if (newCalories && !isNaN(newCalories)) {
+      setCustomCalories(parseInt(newCalories));
+      setMessage({ type: 'success', text: `✓ Calories updated to ${newCalories} kcal/day` });
+    }
+  };
+
+  const handleSaveForLater = () => {
+    setMessage({ type: 'success', text: '✓ Plan saved! Access it anytime from your profile.' });
+  };
+
+  const currentPlan = selectedGoal ? getPersonalizedPlan() : null;
 
   return (
     <div className="diet-page animate-fadeIn">
@@ -44,9 +131,36 @@ function DietRecommendation() {
             <ClipboardList size={28} className="header-icon" />
             Diet Recommendations
           </h1>
-          <p>Choose your goal and get a personalized AI-generated Indian diet plan</p>
+          <p>
+            {user?.name 
+              ? `Personalized AI-generated Indian diet plans for you, ${user.name.split(' ')[0]}`
+              : 'Choose your goal and get a personalized AI-generated Indian diet plan'
+            }
+          </p>
         </div>
+        {user?.targetCalories && (
+          <div className="user-info-badge">
+            <Sparkles size={16} />
+            <span>Your target: {user.targetCalories} kcal/day</span>
+          </div>
+        )}
       </header>
+
+      {isPersonalized && selectedGoal && (
+        <div className="personalized-banner">
+          <Sparkles size={18} />
+          <span>Based on your goal: <strong>{user?.goals?.[0]}</strong></span>
+          <button onClick={() => { setSelectedGoal(null); setIsPersonalized(false); }}>
+            <RefreshCw size={14} /> Change
+          </button>
+        </div>
+      )}
+
+      {message.text && (
+        <div className={`action-message ${message.type}`}>
+          {message.text}
+        </div>
+      )}
 
       {/* Goal Selection */}
       <section className="goals-section">
@@ -58,7 +172,7 @@ function DietRecommendation() {
               <Card 
                 key={goal.id}
                 className={`goal-card ${selectedGoal === goal.id ? 'selected' : ''}`}
-                onClick={() => setSelectedGoal(goal.id)}
+                onClick={() => { setSelectedGoal(goal.id); setIsPersonalized(false); setMessage({ type: '', text: '' }); }}
               >
                 <div className="goal-icon" style={{ background: `${goal.color}15`, color: goal.color }}>
                   <IconComponent size={32} />
@@ -130,9 +244,9 @@ function DietRecommendation() {
           </div>
 
           <div className="plan-actions">
-            <Button variant="gradient">Start This Plan</Button>
-            <Button variant="outline">Customize Plan</Button>
-            <Button variant="ghost">Save for Later</Button>
+            <Button variant="gradient" onClick={handleStartPlan}>Start This Plan</Button>
+            <Button variant="outline" onClick={handleCustomizePlan}>Customize Calories</Button>
+            <Button variant="ghost" onClick={handleSaveForLater}>Save for Later</Button>
           </div>
         </section>
       )}

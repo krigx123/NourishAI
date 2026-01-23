@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Layout Components
 import { Navbar, Footer, DashboardLayout } from './components/layout';
@@ -16,26 +16,41 @@ import HealthInsights from './pages/HealthInsights';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
 
-function App() {
-  // Simulated auth state
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+// Protected Route wrapper
+function ProtectedRoute({ children }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="loading-screen">
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+  
+  return isAuthenticated ? children : <Navigate to="/login" />;
+}
 
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-  };
+// Main App content (need to be inside AuthProvider to use useAuth)
+function AppContent() {
+  const { isAuthenticated, logout, isLoading } = useAuth();
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-  };
+  if (isLoading) {
+    return (
+      <div className="loading-screen">
+        <div className="loading-spinner"></div>
+      </div>
+    );
+  }
 
   return (
     <Router>
       <div className="app">
-        {/* Show navbar only on public pages */}
         <Routes>
           <Route path="/" element={
             <>
-              <Navbar isAuthenticated={isAuthenticated} onLogout={handleLogout} />
+              <Navbar isAuthenticated={isAuthenticated} onLogout={logout} />
               <LandingPage />
               <Footer />
             </>
@@ -43,30 +58,28 @@ function App() {
           <Route path="/login" element={
             isAuthenticated ? <Navigate to="/dashboard" /> : 
             <>
-              <Navbar isAuthenticated={isAuthenticated} onLogout={handleLogout} />
-              <Login onLogin={handleLogin} />
-              <Footer />
+              <Login />
             </>
           } />
           <Route path="/signup" element={
             isAuthenticated ? <Navigate to="/dashboard" /> : 
             <>
-              <Navbar isAuthenticated={isAuthenticated} onLogout={handleLogout} />
-              <Signup onLogin={handleLogin} />
-              <Footer />
+              <Signup />
             </>
           } />
           
           {/* Protected Dashboard Routes */}
           <Route element={
-            isAuthenticated ? <DashboardLayout /> : <Navigate to="/login" />
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
           }>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/analysis" element={<MealAnalysis />} />
             <Route path="/diet" element={<DietRecommendation />} />
             <Route path="/tracker" element={<NutritionTracker />} />
             <Route path="/insights" element={<HealthInsights />} />
-            <Route path="/profile" element={<Profile onLogout={handleLogout} />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/admin" element={<AdminDashboard />} />
           </Route>
 
@@ -75,6 +88,14 @@ function App() {
         </Routes>
       </div>
     </Router>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

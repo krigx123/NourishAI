@@ -293,3 +293,215 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Stats Overview */
+.stats-overview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Admin Charts */
+.admin-charts {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.chart-header h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Admin Bottom Section */
+.admin-bottom {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+}
+
+.users-card, .health-card {
+  padding: 1.5rem;
+}
+
+.users-card h3, .health-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+}
+
+/* Users Table in Admin */
+.users-card table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-card th {
+  text-align: left;
+  padding: 0.75rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #6b7280;
+  background: #f9fafb;
+}
+
+.users-card td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.user-avatar-small {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #10b981, #3b82f6);
+  color: white;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.user-name {
+  display: flex;
+  align-items: center;
+}
+
+.user-email {
+  color: #6b7280;
+}
+
+.user-joined {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.goal-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.goal-badge.weight-loss {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.goal-badge.muscle-gain {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.goal-badge.healthy-living {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+/* Empty Table State */
+.empty-table {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #9ca3af;
+  gap: 0.5rem;
+}
+
+.empty-table p {
+  margin: 0;
+}
+
+/* Health List */
+.health-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.health-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.health-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-icon.healthy { color: #10b981; }
+.status-icon.warning { color: #f59e0b; }
+.status-icon.error { color: #ef4444; }
+
+.health-stats {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.health-latency {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.health-status {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.health-status.healthy {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.health-status.warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.health-status.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+@media (max-width: 1024px) {
+  .stats-overview {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .admin-charts {
+    grid-template-columns: 1fr;
+  }
+  
+  .admin-bottom {
+    grid-template-columns: 1fr;
+  }
+}

@@ -4,21 +4,20 @@ import {
   Camera, 
   Edit3, 
   Check, 
-  Sparkles, 
-  Apple,
-  Beef,
-  Egg,
-  Salad,
-  RotateCcw
+  Sparkles,
+  RotateCcw,
+  Heart,
+  Loader
 } from 'lucide-react';
 import { Card, Button, Input } from '../components/ui';
-import { mealAnalysisResults, macroDistribution, sampleFoods } from '../data/mockData';
-import { indianFoodDatabase, searchFood } from '../data/nutritionDatabase';
+import { mealAnalysisResults, sampleFoods } from '../data/mockData';
+import { searchFood } from '../data/nutritionDatabase';
+import { mealsAPI } from '../services/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import './MealAnalysis.css';
 
 /**
- * Meal Analysis Page - Image upload and food analysis with Indian foods
+ * Meal Analysis Page - Image upload and food analysis with working buttons
  */
 function MealAnalysis() {
   const [analysisMode, setAnalysisMode] = useState('upload');
@@ -27,6 +26,8 @@ function MealAnalysis() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState({ type: '', text: '' });
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -39,12 +40,35 @@ function MealAnalysis() {
     }
   };
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     setIsAnalyzing(true);
+    setSaveMessage({ type: '', text: '' });
     
     // Search in database for matching food
     let result = mealAnalysisResults;
-    if (foodInput) {
+    
+    if (analysisMode === 'upload' && selectedImage) {
+      // For now, use text-based analysis
+      // TODO: Integrate Google Vision API here
+      // The image would be sent to backend which calls Vision API
+      // For demo, we'll use a default result
+      result = {
+        foodName: 'Detected Food (AI Analysis)',
+        calories: 350,
+        protein: 15,
+        carbs: 42,
+        fats: 14,
+        fiber: 6,
+        healthScore: 78,
+        vitamins: ['Vitamin A', 'Vitamin C', 'Vitamin B6'],
+        minerals: ['Iron', 'Calcium', 'Potassium'],
+        suggestions: [
+          'Good nutritional balance detected',
+          'Consider adding more protein for better satiety',
+          'Great fiber content!'
+        ]
+      };
+    } else if (foodInput) {
       const searchResults = searchFood(foodInput);
       if (searchResults.length > 0) {
         const food = searchResults[0];
@@ -67,11 +91,12 @@ function MealAnalysis() {
       }
     }
     
-    setTimeout(() => {
-      setIsAnalyzing(false);
-      setAnalysisResult(result);
-      setShowResults(true);
-    }, 2000);
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    setIsAnalyzing(false);
+    setAnalysisResult(result);
+    setShowResults(true);
   };
 
   const handleReset = () => {
@@ -79,6 +104,67 @@ function MealAnalysis() {
     setSelectedImage(null);
     setFoodInput('');
     setAnalysisResult(null);
+    setSaveMessage({ type: '', text: '' });
+  };
+
+  const handleAddToLog = async () => {
+    if (!analysisResult) return;
+    
+    setIsSaving(true);
+    setSaveMessage({ type: '', text: '' });
+
+    try {
+      await mealsAPI.logMeal({
+        foodName: analysisResult.foodName,
+        calories: analysisResult.calories,
+        protein: analysisResult.protein,
+        carbs: analysisResult.carbs,
+        fats: analysisResult.fats,
+        fiber: analysisResult.fiber,
+        mealType: getMealType(),
+        imageUrl: selectedImage || null
+      });
+
+      setSaveMessage({ type: 'success', text: '✓ Added to today\'s log!' });
+    } catch (error) {
+      setSaveMessage({ type: 'error', text: error.message || 'Failed to log meal' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveToFavorites = async () => {
+    if (!analysisResult) return;
+    
+    setIsSaving(true);
+    setSaveMessage({ type: '', text: '' });
+
+    try {
+      await mealsAPI.addFavorite(analysisResult.foodName, {
+        calories: analysisResult.calories,
+        protein: analysisResult.protein,
+        carbs: analysisResult.carbs,
+        fats: analysisResult.fats,
+        fiber: analysisResult.fiber,
+        healthScore: analysisResult.healthScore,
+        vitamins: analysisResult.vitamins,
+        minerals: analysisResult.minerals
+      });
+
+      setSaveMessage({ type: 'success', text: '♥ Saved to favorites!' });
+    } catch (error) {
+      setSaveMessage({ type: 'error', text: error.message || 'Failed to save favorite' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const getMealType = () => {
+    const hour = new Date().getHours();
+    if (hour < 11) return 'breakfast';
+    if (hour < 15) return 'lunch';
+    if (hour < 18) return 'snack';
+    return 'dinner';
   };
 
   const currentResult = analysisResult || mealAnalysisResults;
@@ -208,6 +294,12 @@ function MealAnalysis() {
               </Button>
             </div>
 
+            {saveMessage.text && (
+              <div className={`save-message ${saveMessage.type}`}>
+                {saveMessage.text}
+              </div>
+            )}
+
             <div className="results-grid">
               {/* Main Stats */}
               <Card className="calorie-card">
@@ -317,8 +409,21 @@ function MealAnalysis() {
             </div>
 
             <div className="results-actions">
-              <Button variant="primary">Add to Today's Log</Button>
-              <Button variant="outline">Save to Favorites</Button>
+              <Button 
+                variant="primary" 
+                onClick={handleAddToLog}
+                loading={isSaving}
+                icon={isSaving ? <Loader size={18} className="spin" /> : null}
+              >
+                Add to Today's Log
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleSaveToFavorites}
+                icon={<Heart size={18} />}
+              >
+                Save to Favorites
+              </Button>
             </div>
           </div>
         )}

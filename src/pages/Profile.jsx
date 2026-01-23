@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   User, 
   Mail, 
@@ -14,27 +14,116 @@ import {
   Ruler
 } from 'lucide-react';
 import { Card, Button, Input } from '../components/ui';
-import { mockUser } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
+import { userAPI } from '../services/api';
 import './Profile.css';
 
 /**
- * Profile Page - User settings and preferences
+ * Profile Page - User settings with real data
  */
-function Profile({ onLogout }) {
+function Profile() {
+  const { user, logout, updateUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [userData, setUserData] = useState(mockUser);
+  const [userData, setUserData] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setUserData({
+        name: user.name || '',
+        email: user.email || '',
+        age: user.age || '',
+        weight: user.weight || '',
+        height: user.height || '',
+        gender: user.gender || 'female',
+        dietType: user.dietType || 'Vegetarian',
+        allergies: user.allergies || [],
+        goals: user.goals || [],
+        activityLevel: user.activityLevel || 'Moderate',
+        joinedDate: user.joinedDate || new Date().toISOString()
+      });
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setUserData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = () => {
-    setIsEditing(false);
-    // In a real app, this would save to backend
+  const handleSave = async () => {
+    setIsSaving(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      const response = await userAPI.updateProfile({
+        name: userData.name,
+        age: parseInt(userData.age) || null,
+        weight: parseFloat(userData.weight) || null,
+        height: parseFloat(userData.height) || null,
+        gender: userData.gender,
+        dietType: userData.dietType,
+        allergies: userData.allergies,
+        goals: userData.goals,
+        activityLevel: userData.activityLevel
+      });
+
+      updateUser({ 
+        ...userData, 
+        targetCalories: response.targetCalories 
+      });
+      
+      setIsEditing(false);
+      setMessage({ type: 'success', text: 'Profile updated successfully!' });
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message || 'Failed to update profile' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const goals = ['Weight Loss', 'Muscle Gain', 'Better Digestion', 'Heart Health', 'Energy Boost'];
+  const handleExportData = async () => {
+    try {
+      const data = await userAPI.exportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nourishai-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setMessage({ type: 'success', text: 'Data exported successfully!' });
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to export data' });
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      await userAPI.deleteAccount();
+      logout();
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to delete account' });
+    }
+  };
+
+  if (!userData) {
+    return (
+      <div className="profile-page animate-fadeIn">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const bmi = userData.weight && userData.height 
+    ? (userData.weight / ((userData.height / 100) ** 2)).toFixed(1)
+    : '--';
 
   return (
     <div className="profile-page animate-fadeIn">
@@ -50,17 +139,24 @@ function Profile({ onLogout }) {
           variant={isEditing ? 'primary' : 'outline'} 
           onClick={() => isEditing ? handleSave() : setIsEditing(true)}
           icon={isEditing ? <Save size={18} /> : <Edit2 size={18} />}
+          loading={isSaving}
         >
           {isEditing ? 'Save Changes' : 'Edit Profile'}
         </Button>
       </header>
+
+      {message.text && (
+        <div className={`message-banner ${message.type}`}>
+          {message.text}
+        </div>
+      )}
 
       <div className="profile-content">
         {/* Profile Header Card */}
         <Card className="profile-header-card">
           <div className="avatar-section">
             <div className="avatar-large">
-              {userData.name.split(' ').map(n => n[0]).join('')}
+              {userData.name.split(' ').map(n => n[0]).join('').toUpperCase()}
             </div>
             {isEditing && (
               <button className="avatar-upload">Change Photo</button>
@@ -71,7 +167,9 @@ function Profile({ onLogout }) {
             <p className="profile-email">{userData.email}</p>
             <div className="profile-badges">
               <span className="badge premium">Premium User</span>
-              <span className="badge member">Member since {new Date(userData.joinedDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span>
+              <span className="badge member">
+                Member since {new Date(userData.joinedDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
+              </span>
             </div>
           </div>
         </Card>
@@ -98,8 +196,7 @@ function Profile({ onLogout }) {
                   name="email"
                   type="email"
                   value={userData.email}
-                  onChange={handleChange}
-                  disabled={!isEditing}
+                  disabled={true}
                   icon={<Mail size={18} />}
                 />
               </div>
@@ -135,7 +232,7 @@ function Profile({ onLogout }) {
               <div className="stat-item">
                 <Scale size={24} />
                 <div className="stat-info">
-                  <span className="stat-value">{userData.weight} kg</span>
+                  <span className="stat-value">{userData.weight || '--'} kg</span>
                   <span className="stat-label">Weight</span>
                 </div>
                 {isEditing && (
@@ -151,7 +248,7 @@ function Profile({ onLogout }) {
               <div className="stat-item">
                 <Ruler size={24} />
                 <div className="stat-info">
-                  <span className="stat-value">{userData.height} cm</span>
+                  <span className="stat-value">{userData.height || '--'} cm</span>
                   <span className="stat-label">Height</span>
                 </div>
                 {isEditing && (
@@ -167,9 +264,7 @@ function Profile({ onLogout }) {
               <div className="stat-item calculated">
                 <Activity size={24} />
                 <div className="stat-info">
-                  <span className="stat-value">
-                    {(userData.weight / ((userData.height / 100) ** 2)).toFixed(1)}
-                  </span>
+                  <span className="stat-value">{bmi}</span>
                   <span className="stat-label">BMI</span>
                 </div>
               </div>
@@ -190,10 +285,11 @@ function Profile({ onLogout }) {
               <div className="preference-item">
                 <span className="preference-label">Allergies</span>
                 <div className="tags">
-                  {userData.allergies.map((allergy, index) => (
-                    <span key={index} className="tag allergy">{allergy}</span>
-                  ))}
-                  {userData.allergies.length === 0 && (
+                  {userData.allergies?.length > 0 ? (
+                    userData.allergies.map((allergy, index) => (
+                      <span key={index} className="tag allergy">{allergy}</span>
+                    ))
+                  ) : (
                     <span className="tag none">None specified</span>
                   )}
                 </div>
@@ -201,9 +297,13 @@ function Profile({ onLogout }) {
               <div className="preference-item">
                 <span className="preference-label">Health Goals</span>
                 <div className="tags">
-                  {userData.goals.map((goal, index) => (
-                    <span key={index} className="tag goal">{goal}</span>
-                  ))}
+                  {userData.goals?.length > 0 ? (
+                    userData.goals.map((goal, index) => (
+                      <span key={index} className="tag goal">{goal}</span>
+                    ))
+                  ) : (
+                    <span className="tag none">None specified</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -213,19 +313,42 @@ function Profile({ onLogout }) {
           <Card className="actions-card">
             <h3>Account Actions</h3>
             <div className="actions-list">
-              <Button variant="outline" fullWidth icon={<Download size={18} />}>
+              <Button variant="outline" fullWidth icon={<Download size={18} />} onClick={handleExportData}>
                 Export My Data
               </Button>
-              <Button variant="outline" fullWidth onClick={onLogout} icon={<LogOut size={18} />}>
+              <Button variant="outline" fullWidth onClick={logout} icon={<LogOut size={18} />}>
                 Sign Out
               </Button>
-              <Button variant="danger" fullWidth icon={<Trash2 size={18} />}>
+              <Button 
+                variant="danger" 
+                fullWidth 
+                icon={<Trash2 size={18} />}
+                onClick={() => setShowDeleteConfirm(true)}
+              >
                 Delete Account
               </Button>
             </div>
           </Card>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay">
+          <Card className="confirm-modal">
+            <h3>Delete Account?</h3>
+            <p>This action cannot be undone. All your data will be permanently deleted.</p>
+            <div className="modal-actions">
+              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={handleDeleteAccount}>
+                Delete Account
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

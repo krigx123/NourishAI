@@ -9,12 +9,15 @@ import {
   Settings,
   Leaf
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
 /**
  * Sidebar navigation for dashboard pages
  */
 function Sidebar() {
+  const { user } = useAuth();
+
   const menuItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/analysis', icon: UtensilsCrossed, label: 'Meal Analysis' },
@@ -24,6 +27,12 @@ function Sidebar() {
     { path: '/profile', icon: User, label: 'Profile' },
     { path: '/admin', icon: Settings, label: 'Admin Panel' },
   ];
+
+  // Get user initials for avatar
+  const getInitials = () => {
+    if (!user?.name) return 'U';
+    return user.name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
 
   return (
     <aside className="sidebar">
@@ -49,9 +58,9 @@ function Sidebar() {
 
       <div className="sidebar-footer">
         <div className="sidebar-user">
-          <div className="user-avatar">PS</div>
+          <div className="user-avatar">{getInitials()}</div>
           <div className="user-info">
-            <span className="user-name">Priya Sharma</span>
+            <span className="user-name">{user?.name || 'User'}</span>
             <span className="user-role">Premium User</span>
           </div>
         </div>

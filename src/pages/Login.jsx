@@ -1,20 +1,24 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Leaf } from 'lucide-react';
-import { Card, Button, Input } from '../components/ui';
+import { Mail, Lock, Leaf, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { Button, Input } from '../components/ui';
+import { useAuth } from '../context/AuthContext';
 import './Auth.css';
 
 /**
- * Login Page - Form with validation and simulated auth
+ * Login Page - Split screen with image and form
  */
-function Login({ onLogin }) {
+function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [apiError, setApiError] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -22,6 +26,7 @@ function Login({ onLogin }) {
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
+    setApiError('');
   };
 
   const validate = () => {
@@ -33,13 +38,11 @@ function Login({ onLogin }) {
     }
     if (!formData.password) {
       newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
     }
     return newErrors;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validate();
     
@@ -49,24 +52,61 @@ function Login({ onLogin }) {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      onLogin();
+    setApiError('');
+
+    try {
+      await login(formData.email, formData.password);
       navigate('/dashboard');
-    }, 1000);
+    } catch (error) {
+      setApiError(error.message || 'Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="auth-page">
-      <div className="auth-container">
-        <Card className="auth-card" hover={false}>
-          <div className="auth-header">
-            <div className="auth-icon">
-              <Leaf size={32} />
+      {/* Left Side - Image */}
+      <div className="auth-image-section">
+        <div className="auth-image-overlay">
+          <div className="auth-image-content">
+            <div className="auth-logo">
+              <Leaf size={48} />
+              <span>NourishAI</span>
             </div>
-            <h1>Welcome Back</h1>
-            <p>Sign in to continue your health journey</p>
+            <h2>Welcome Back!</h2>
+            <p>Your personal AI nutritionist is ready to help you continue your health journey.</p>
+            <div className="auth-image-features">
+              <div className="feature-item">
+                <span className="feature-icon">🍽️</span>
+                <span>Track your meals with AI</span>
+              </div>
+              <div className="feature-item">
+                <span className="feature-icon">📊</span>
+                <span>Get personalized insights</span>
+              </div>
+              <div className="feature-item">
+                <span className="feature-icon">🎯</span>
+                <span>Achieve your health goals</span>
+              </div>
+            </div>
           </div>
+        </div>
+      </div>
+
+      {/* Right Side - Form */}
+      <div className="auth-form-section">
+        <div className="auth-form-container">
+          <div className="auth-header">
+            <h1>Sign In</h1>
+            <p>Enter your credentials to access your account</p>
+          </div>
+
+          {apiError && (
+            <div className="auth-error-banner">
+              {apiError}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="auth-form">
             <Input
@@ -81,17 +121,26 @@ function Login({ onLogin }) {
               required
             />
 
-            <Input
-              type="password"
-              name="password"
-              label="Password"
-              placeholder="Enter your password"
-              value={formData.password}
-              onChange={handleChange}
-              error={errors.password}
-              icon={<Lock size={18} />}
-              required
-            />
+            <div className="password-field">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                label="Password"
+                placeholder="Enter your password"
+                value={formData.password}
+                onChange={handleChange}
+                error={errors.password}
+                icon={<Lock size={18} />}
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
 
             <div className="auth-options">
               <label className="remember-me">
@@ -106,28 +155,21 @@ function Login({ onLogin }) {
               variant="gradient" 
               fullWidth 
               loading={isLoading}
+              icon={<ArrowRight size={18} />}
+              iconPosition="right"
             >
               Sign In
             </Button>
           </form>
 
           <div className="auth-divider">
-            <span>or continue with</span>
-          </div>
-
-          <div className="social-buttons">
-            <Button variant="outline" className="social-btn">
-              Google
-            </Button>
-            <Button variant="outline" className="social-btn">
-              Apple
-            </Button>
+            <span>or</span>
           </div>
 
           <p className="auth-footer">
-            Don't have an account? <Link to="/signup">Sign up free</Link>
+            Don't have an account? <Link to="/signup">Create one for free</Link>
           </p>
-        </Card>
+        </div>
       </div>
     </div>
   );

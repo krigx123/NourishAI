@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Flame, 
@@ -13,31 +14,110 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { Card, Button, ProgressBar } from '../components/ui';
-import { dashboardSummary, weeklyNutritionData, healthTips } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
+import { userAPI, mealsAPI } from '../services/api';
+import { healthTips } from '../data/mockData';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import './Dashboard.css';
 
 /**
- * Dashboard Page - Main overview with summary cards
+ * Dashboard Page - Main overview with personalized data
  */
 function Dashboard() {
-  const { dailyCalories, nutritionScore, healthStatus, waterIntake, streak } = dashboardSummary;
+  const { user } = useAuth();
+  const [dashboardData, setDashboardData] = useState(null);
+  const [weeklyData, setWeeklyData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const [dashboard, history] = await Promise.all([
+          userAPI.getDashboard(),
+          mealsAPI.getHistory()
+        ]);
+        
+        setDashboardData(dashboard);
+        
+        // Transform history for chart
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const chartData = history.history?.map(item => ({
+          day: days[new Date(item.date).getDay()],
+          calories: parseInt(item.total_calories) || 0
+        })).reverse() || [];
+        
+        // Fill with default data if no history
+        if (chartData.length === 0) {
+          const today = new Date();
+          for (let i = 6; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            chartData.push({
+              day: days[d.getDay()],
+              calories: 0
+            });
+          }
+        }
+        
+        setWeeklyData(chartData);
+      } catch (error) {
+        console.error('Error fetching dashboard:', error);
+        // Set default values on error
+        setDashboardData({
+          dailyCalories: { consumed: 0, goal: user?.targetCalories || 2000, percentage: 0 },
+          nutritionScore: 50,
+          healthStatus: 'Start Logging',
+          waterIntake: { current: 0, goal: 8 },
+          streak: 0
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [user]);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const getFirstName = () => {
+    if (!user?.name) return 'there';
+    return user.name.split(' ')[0];
+  };
 
   const getHealthStatusColor = (status) => {
     switch (status) {
       case 'Excellent': return 'var(--success)';
       case 'Good': return 'var(--primary-500)';
       case 'Fair': return 'var(--warning)';
-      default: return 'var(--error)';
+      default: return 'var(--neutral-500)';
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="dashboard-page animate-fadeIn">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { dailyCalories, nutritionScore, healthStatus, waterIntake, streak } = dashboardData || {};
 
   return (
     <div className="dashboard-page animate-fadeIn">
       {/* Header */}
       <header className="dashboard-header">
         <div className="header-content">
-          <h1>Good Morning, Priya!</h1>
+          <h1>{getGreeting()}, {getFirstName()}!</h1>
           <p>Here's your nutrition overview for today</p>
         </div>
         <div className="header-actions">
@@ -59,12 +139,12 @@ function Dashboard() {
             <div className="card-info">
               <span className="card-label">Calories Today</span>
               <div className="card-value">
-                <span className="value-main">{dailyCalories.consumed}</span>
-                <span className="value-sub">/ {dailyCalories.goal} kcal</span>
+                <span className="value-main">{dailyCalories?.consumed || 0}</span>
+                <span className="value-sub">/ {dailyCalories?.goal || user?.targetCalories || 2000} kcal</span>
               </div>
               <ProgressBar 
-                value={dailyCalories.consumed} 
-                max={dailyCalories.goal} 
+                value={dailyCalories?.consumed || 0} 
+                max={dailyCalories?.goal || 2000} 
                 variant="primary"
                 size="small"
                 showPercentage={false}
@@ -79,11 +159,11 @@ function Dashboard() {
             <div className="card-info">
               <span className="card-label">Nutrition Score</span>
               <div className="card-value">
-                <span className="value-main">{nutritionScore}</span>
+                <span className="value-main">{nutritionScore || 0}</span>
                 <span className="value-sub">/ 100</span>
               </div>
               <div className="score-indicator">
-                <span>Excellent</span>
+                <span>{healthStatus || 'Log meals to start'}</span>
               </div>
             </div>
           </Card>
@@ -96,14 +176,14 @@ function Dashboard() {
               <span className="card-label">Health Status</span>
               <div className="card-value">
                 <span className="value-main" style={{ color: getHealthStatusColor(healthStatus) }}>
-                  {healthStatus}
+                  {healthStatus || 'Getting Started'}
                 </span>
               </div>
               <div className="status-dots">
-                <span className="dot active"></span>
-                <span className="dot active"></span>
-                <span className="dot active"></span>
-                <span className="dot"></span>
+                <span className={`dot ${nutritionScore >= 25 ? 'active' : ''}`}></span>
+                <span className={`dot ${nutritionScore >= 50 ? 'active' : ''}`}></span>
+                <span className={`dot ${nutritionScore >= 75 ? 'active' : ''}`}></span>
+                <span className={`dot ${nutritionScore >= 90 ? 'active' : ''}`}></span>
               </div>
             </div>
           </Card>
@@ -115,12 +195,12 @@ function Dashboard() {
             <div className="card-info">
               <span className="card-label">Water Intake</span>
               <div className="card-value">
-                <span className="value-main">{waterIntake.current}</span>
-                <span className="value-sub">/ {waterIntake.goal} glasses</span>
+                <span className="value-main">{waterIntake?.current || 0}</span>
+                <span className="value-sub">/ {waterIntake?.goal || 8} glasses</span>
               </div>
               <ProgressBar 
-                value={waterIntake.current} 
-                max={waterIntake.goal} 
+                value={waterIntake?.current || 0} 
+                max={waterIntake?.goal || 8} 
                 variant="secondary"
                 size="small"
                 showPercentage={false}
@@ -135,12 +215,12 @@ function Dashboard() {
             <div className="card-info">
               <span className="card-label">Current Streak</span>
               <div className="card-value">
-                <span className="value-main">{streak}</span>
+                <span className="value-main">{streak || 0}</span>
                 <span className="value-sub">days</span>
               </div>
               <div className="streak-badge">
                 <TrendingUp size={14} />
-                Keep it up!
+                {streak > 0 ? 'Keep it up!' : 'Start logging!'}
               </div>
             </div>
           </Card>
@@ -157,7 +237,7 @@ function Dashboard() {
             </div>
             <div className="chart-container">
               <ResponsiveContainer width="100%" height={250}>
-                <AreaChart data={weeklyNutritionData}>
+                <AreaChart data={weeklyData}>
                   <defs>
                     <linearGradient id="colorCalories" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
