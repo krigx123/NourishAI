@@ -1,0 +1,233 @@
+/* ============================================
+   Profile Page Styles
+   ============================================ */
+
+.profile-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-8);
+}
+
+.header-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+/* Profile Grid */
+.profile-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: var(--space-6);
+}
+
+/* Profile Card */
+.profile-card {
+  text-align: center;
+  padding: var(--space-8);
+  grid-row: span 2;
+}
+
+.profile-avatar {
+  position: relative;
+  display: inline-block;
+  margin-bottom: var(--space-4);
+}
+
+.avatar-circle {
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(135deg, var(--primary-500), var(--secondary-500));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+.avatar-edit {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 36px;
+  height: 36px;
+  background: white;
+  border: 2px solid var(--gray-200);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.profile-card h2 {
+  font-size: 1.5rem;
+  margin-bottom: var(--space-1);
+}
+
+.profile-card > p {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.profile-badges {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+}
+
+.badge {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge.premium {
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+  color: white;
+}
+
+.badge.streak {
+  background: var(--warning);
+  color: white;
+}
+
+.profile-stats {
+  display: flex;
+  justify-content: space-around;
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--gray-100);
+}
+
+.profile-stats .stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-stats .stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-600);
+}
+
+.profile-stats .stat-label {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+/* Info Card */
+.info-card,
+.preferences-card,
+.actions-card {
+  padding: var(--space-6);
+}
+
+.info-card h3,
+.preferences-card h3,
+.actions-card h3 {
+  font-size: 1.125rem;
+  margin-bottom: var(--space-6);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-5);
+}
+
+.profile-select {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-size: 1rem;
+  border: 2px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.profile-select:disabled {
+  background: var(--gray-100);
+  cursor: not-allowed;
+}
+
+.profile-select:focus {
+  outline: none;
+  border-color: var(--primary-500);
+}
+
+/* Goals Section */
+.goals-section {
+  margin-top: var(--space-6);
+}
+
+.goals-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.goal-chip {
+  padding: var(--space-2) var(--space-4);
+  background: var(--gray-100);
+  border: 2px solid transparent;
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.goal-chip:hover {
+  background: var(--primary-50);
+  color: var(--primary-600);
+}
+
+.goal-chip.selected {
+  background: var(--primary-100);
+  border-color: var(--primary-500);
+  color: var(--primary-700);
+}
+
+/* Actions Card */
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-card {
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-4);
+  }
+}

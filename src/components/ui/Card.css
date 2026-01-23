@@ -1,0 +1,133 @@
+.card {
+  background: var(--surface-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+.card-hover[role="button"] {
+  cursor: pointer;
+}
+
+/* Padding Variants */
+.card-padding-sm {
+  padding: var(--space-4);
+}
+
+.card-padding-md {
+  padding: var(--space-6);
+}
+
+.card-padding-lg {
+  padding: var(--space-8);
+}
+
+/* Card Variants */
+.card-default {
+  border: 1px solid var(--gray-100);
+}
+
+.card-gradient {
+  background: linear-gradient(135deg, var(--primary-50), var(--secondary-50));
+  border: 1px solid var(--primary-100);
+}
+
+.card-primary {
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+  color: var(--text-inverse);
+}
+
+.card-primary p,
+.card-primary h1,
+.card-primary h2,
+.card-primary h3,
+.card-primary h4 {
+  color: var(--text-inverse);
+}
+
+.card-glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.card-outline {
+  background: transparent;
+  border: 2px solid var(--gray-200);
+  box-shadow: none;
+}
+
+.card-outline:hover {
+  border-color: var(--primary-500);
+}
+
+/* Card with Icon */
+.card-icon {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.card-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.card-icon-wrapper.primary {
+  background: var(--primary-100);
+}
+
+.card-icon-wrapper.secondary {
+  background: var(--secondary-100);
+}
+
+.card-icon-wrapper.accent {
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+  color: white;
+}
+
+/* Stats Card */
+.card-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.card-stats .stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.card-stats .stat-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.card-stats .stat-change {
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.card-stats .stat-change.positive {
+  color: var(--success);
+}
+
+.card-stats .stat-change.negative {
+  color: var(--error);
+}
