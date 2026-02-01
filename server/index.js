@@ -7,6 +7,9 @@ import mealsRoutes from './routes/meals.js';
 import usersRoutes from './routes/users.js';
 import adminRoutes from './routes/admin.js';
 import foodRoutes from './routes/food.js';
+import geminiRoutes from './routes/gemini.js';
+import visionRoutes from './routes/vision.js';
+import groqRoutes from './routes/groq.js';
 
 dotenv.config();
 
@@ -31,6 +34,9 @@ app.use('/api/meals', mealsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/food', foodRoutes);
+app.use('/api/gemini', geminiRoutes);
+app.use('/api/vision', visionRoutes);
+app.use('/api/groq', groqRoutes);
 
 // Initialize database and start server
 async function startServer() {

@@ -210,4 +210,58 @@ export const foodAPI = {
   }
 };
 
-export default { authAPI, userAPI, mealsAPI, foodAPI };
+// Gemini AI API - Expert Nutritionist Verification
+export const geminiAPI = {
+  verifyNutrition: async (foodName) => {
+    const response = await fetch(`${API_BASE_URL}/gemini/verify-nutrition`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ foodName })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      if (data.useFallback) {
+        return { success: false, useFallback: true, error: data.error };
+      }
+      throw new Error(data.error);
+    }
+    return data;
+  }
+};
+
+// Vision API - Food Detection using Google Cloud Vision
+export const visionAPI = {
+  detectFood: async (imageBase64) => {
+    const response = await fetch(`${API_BASE_URL}/vision/detect`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ imageBase64 })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+    return data;
+  }
+};
+
+// Groq API - Nutrition Analysis using LLM
+export const groqAPI = {
+  analyzeNutrition: async (foodLabels, visionData = {}) => {
+    const response = await fetch(`${API_BASE_URL}/groq/analyze`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ 
+        foodLabels,
+        primaryMeal: visionData.primaryMeal,
+        alternatives: visionData.alternatives || [],
+        detectionNote: visionData.detectionNote || '',
+        isIndianMeal: visionData.isIndianMeal || false
+      })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+    return data;
+  }
+};
+
+export default { authAPI, userAPI, mealsAPI, foodAPI, geminiAPI, visionAPI, groqAPI };
+

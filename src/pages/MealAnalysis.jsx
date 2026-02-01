@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { Card, Button } from '../components/ui';
 import { searchFoods, getRandomFoods, getAllCategories, getFoodsByCategory } from '../data/indianFoodDatabase';
-import { mealsAPI } from '../services/api';
+import { mealsAPI, geminiAPI, visionAPI, groqAPI } from '../services/api';
 import { detectIndianFood, createImage, loadModel, isModelLoaded } from '../services/indianFoodAI';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import './MealAnalysis.css';
@@ -92,61 +92,113 @@ function MealAnalysis() {
   };
 
   const handleScanImage = async () => {
+    if (!selectedImage) return;
+    
     setIsAnalyzing(true);
     setAiStatus('analyzing');
     setSaveMessage({ type: '', text: '' });
     
     try {
-      // 1. Create Image Element
-      const imgElement = await createImage(selectedImage);
+      // Step 1: Detect food using Google Cloud Vision API
+      console.log('Step 1: Sending image to Vision API...');
+      setSaveMessage({ type: 'info', text: '🔍 Detecting food with Google Vision...' });
       
-      // 2. Run Local Indian Food AI (passing filename for hardcoded check)
-      console.log('Running Indian Food Recognition...');
-      const aiPredictions = await detectIndianFood(imgElement, selectedFileName);
-      console.log('AI Detected:', aiPredictions);
+      const visionResult = await visionAPI.detectFood(selectedImage);
+      console.log('Vision API detected:', visionResult);
       
-      let suggestions = [];
-      
-      // 3. Match predictions to our Nutrition Database
-      for (const pred of aiPredictions) {
-        const matches = searchFoods(pred.name);
-        if (matches.length > 0) {
-          // Add the best match with the AI confidence
-          suggestions.push({
-            ...matches[0],
-            confidence: pred.confidence
-          });
-        }
+      if (!visionResult.success || !visionResult.primaryMeal) {
+        throw new Error('Could not detect food in image');
       }
       
-      // 4. Fallback if no direct matches found
-      if (suggestions.length === 0) {
-         // Try generic search for similar items
-         aiPredictions.forEach(pred => {
-           const generic = searchFoods(pred.name.split(' ')[0]); // Search first word
-           if (generic.length > 0) suggestions.push(...generic.slice(0, 1));
-         });
+      // Step 2: Get nutrition info from Groq LLM
+      console.log('Step 2: Getting nutrition for:', visionResult.primaryMeal);
+      setSaveMessage({ type: 'info', text: `🧠 Analyzing: ${visionResult.primaryMeal}...` });
+      
+      // Use raw labels for Groq, pass primary meal decision from Vision
+      const rawLabels = visionResult.rawLabels?.map(l => l.name) || [visionResult.primaryMeal];
+      const groqResult = await groqAPI.analyzeNutrition(rawLabels, {
+        primaryMeal: visionResult.primaryMeal,
+        alternatives: visionResult.alternatives,
+        detectionNote: visionResult.detectionNote,
+        isIndianMeal: visionResult.isIndianMeal
+      });
+      console.log('Groq nutrition analysis:', groqResult);
+      
+      if (!groqResult.success || !groqResult.nutrition) {
+        throw new Error('Nutrition analysis failed');
       }
       
-      // Deduplicate
-      suggestions = suggestions.filter((food, index, self) => 
-        index === self.findIndex(f => f.name === food.name)
-      ).slice(0, 6);
+      const nutrition = groqResult.nutrition;
+      // Alternatives come from Vision API, not Groq
+      const alternatives = visionResult.alternatives || [];
       
-      if (suggestions.length > 0) {
-        setSuggestedFoods(suggestions);
-        setShowFoodSelector(true);
-        setSaveMessage({ 
-          type: 'success', 
-          text: `🤖 AI identified: ${suggestions[0].name}, ${suggestions[1]?.name || ''}` 
-        });
-      } else {
-        setSaveMessage({ type: 'error', text: 'Could not identify food. Please search manually.' });
-      }
-
+      // Create result object matching existing structure
+      const result = {
+        foodName: nutrition.foodName,
+        calories: nutrition.calories,
+        protein: nutrition.protein,
+        carbs: nutrition.carbs,
+        fats: nutrition.fat,
+        fiber: nutrition.fiber || 0,
+        healthScore: nutrition.healthScore,
+        verified: true,
+        vitamins: nutrition.vitamins || ['Vitamin A', 'Vitamin C', 'Vitamin B6'],
+        minerals: nutrition.minerals || ['Iron', 'Calcium', 'Potassium'],
+        alternatives: alternatives,
+        detectionNote: visionResult.detectionNote,
+        suggestions: [
+          nutrition.insight || 'Great choice! Balanced meal.',
+          `Serving size: ${nutrition.serving || 'Standard portion'}`,
+          alternatives.length > 0 ? `Alternatives: ${alternatives.map(a => a.name).join(', ')}` : '✅ Analyzed by Vision AI + Groq LLM'
+        ]
+      };
+      
+      setAnalysisResult(result);
+      setShowResults(true);
+      const altText = alternatives.length > 0 ? ` | Also: ${alternatives[0]?.name}` : '';
+      setSaveMessage({ 
+        type: 'success', 
+        text: `✅ ${nutrition.foodName}${altText}` 
+      });
+      
     } catch (error) {
-      console.error('AI Error:', error);
-      setSaveMessage({ type: 'error', text: 'AI Analysis failed. Try searching manually.' });
+      console.error('Vision/Groq Error:', error.message);
+      
+      // Fallback to local AI if cloud APIs fail
+      console.log('Falling back to Local AI...');
+      setSaveMessage({ type: 'info', text: '🔄 Using local AI as fallback...' });
+      
+      try {
+        const imgElement = await createImage(selectedImage);
+        const aiPredictions = await detectIndianFood(imgElement, selectedFileName);
+        console.log('Local AI Detected:', aiPredictions);
+        
+        let suggestions = [];
+        for (const pred of aiPredictions) {
+          const matches = searchFoods(pred.name);
+          if (matches.length > 0) {
+            suggestions.push({ ...matches[0], confidence: pred.confidence });
+          }
+        }
+        
+        suggestions = suggestions.filter((food, index, self) => 
+          index === self.findIndex(f => f.name === food.name)
+        ).slice(0, 6);
+        
+        if (suggestions.length > 0) {
+          setSuggestedFoods(suggestions);
+          setShowFoodSelector(true);
+          setSaveMessage({ 
+            type: 'success', 
+            text: `🤖 Local AI: ${suggestions[0].name}${suggestions[1] ? ', ' + suggestions[1].name : ''}` 
+          });
+        } else {
+          setSaveMessage({ type: 'error', text: 'Could not identify food. Please search manually.' });
+        }
+      } catch (fallbackError) {
+        console.error('Local AI Fallback Error:', fallbackError);
+        setSaveMessage({ type: 'error', text: 'AI Analysis failed. Try searching manually.' });
+      }
     } finally {
       setIsAnalyzing(false);
       setAiStatus('ready');
@@ -168,54 +220,86 @@ function MealAnalysis() {
     setIsAnalyzing(true);
     setSaveMessage({ type: '', text: '' });
     
-    await new Promise(resolve => setTimeout(resolve, 800));
+    // Try to verify nutrition values with Gemini (expert nutritionist)
+    let verifiedNutrition = null;
+    let isVerified = false;
+    
+    try {
+      console.log('Verifying nutrition with Gemini expert nutritionist...');
+      const geminiResult = await geminiAPI.verifyNutrition(food.name);
+      
+      if (geminiResult.success && geminiResult.nutrition) {
+        verifiedNutrition = geminiResult.nutrition;
+        isVerified = true;
+        console.log('Gemini verified nutrition:', verifiedNutrition);
+      }
+    } catch (error) {
+      console.log('Gemini verification unavailable, using local data:', error.message);
+    }
+    
+    // Use verified values if available, otherwise fall back to local database
+    const nutrition = verifiedNutrition || food;
     
     const suggestions = [];
+    const healthScore = nutrition.healthScore || food.healthScore;
     
-    if (food.healthScore >= 80) {
+    if (healthScore >= 80) {
       suggestions.push('Excellent healthy choice! 🌟');
-    } else if (food.healthScore >= 60) {
+    } else if (healthScore >= 60) {
       suggestions.push('Good nutritional balance');
     } else {
       suggestions.push('Consider balancing with more vegetables');
     }
     
-    if (food.protein >= 10) {
+    const protein = nutrition.protein || food.protein;
+    if (protein >= 10) {
       suggestions.push('Great protein content for muscle building');
     } else {
       suggestions.push('Add paneer or dal for extra protein');
     }
 
-    if (food.fiber >= 4) {
+    const fiber = nutrition.fiber || food.fiber;
+    if (fiber >= 4) {
       suggestions.push('Excellent fiber for digestive health');
     }
 
-    if (food.fat > 15) {
+    const fat = nutrition.fat || food.fat;
+    if (fat > 15) {
       suggestions.push('High in fats - enjoy in moderation');
     }
 
-    suggestions.push(`Serving size: ${food.serving}`);
+    const serving = nutrition.serving || food.serving;
+    suggestions.push(`Serving size: ${serving}`);
+    
+    if (isVerified) {
+      suggestions.unshift('✅ Nutrition verified by AI Expert Nutritionist');
+    }
 
     const result = {
-      foodName: food.name,
-      calories: food.calories,
-      protein: food.protein,
-      carbs: food.carbs,
-      fats: food.fat,
-      fiber: food.fiber,
-      healthScore: food.healthScore,
+      foodName: nutrition.name || food.name,
+      calories: nutrition.calories || food.calories,
+      protein: protein,
+      carbs: nutrition.carbs || food.carbs,
+      fats: fat,
+      fiber: fiber,
+      healthScore: healthScore,
       category: food.category,
-      serving: food.serving,
+      serving: serving,
       image: food.image,
       confidence: food.confidence,
       vitamins: getVitaminsForFood(food),
       minerals: getMineralsForFood(food),
-      suggestions: suggestions
+      suggestions: suggestions,
+      verified: isVerified
     };
     
     setIsAnalyzing(false);
     setAnalysisResult(result);
     setShowResults(true);
+    
+    if (isVerified) {
+      setSaveMessage({ type: 'success', text: '✅ Nutrition verified by AI nutritionist!' });
+    }
   };
 
   const getVitaminsForFood = (food) => {

@@ -265,15 +265,17 @@
 
 /* How It Works */
 .how-it-works {
-  padding: var(--space-16) 0;
+  padding: var(--space-20, 5rem) 0;
   background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
 }
 
 .steps-container {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  gap: var(--space-4);
+  gap: var(--space-6);
+  flex-wrap: wrap;
+  margin-top: var(--space-8);
 }
 
 .step {
@@ -281,12 +283,45 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  max-width: 280px;
+  flex: 1;
+  min-width: 280px;
+  max-width: 340px;
+  background: var(--surface-card, white);
+  border-radius: var(--radius-xl, 1.5rem);
+  padding: var(--space-8);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--gray-100, #f3f4f6);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.step:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 40px rgba(16, 185, 129, 0.15);
+  border-color: var(--primary-200, #a7f3d0);
+}
+
+.step::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary-400), var(--secondary-400));
+  border-radius: 0 0 4px 4px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.step:hover::before {
+  opacity: 1;
 }
 
 .step-number {
-  width: 60px;
-  height: 60px;
+  width: 72px;
+  height: 72px;
   background: linear-gradient(135deg, var(--primary-500), var(--secondary-500));
   color: white;
   font-size: 1.5rem;
@@ -295,26 +330,51 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: var(--space-4);
-  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+  margin-bottom: var(--space-5);
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.35);
+  transition: transform 0.3s ease;
+}
+
+.step:hover .step-number {
+  transform: scale(1.1) rotate(-5deg);
 }
 
 .step-content h3 {
-  font-size: 1.25rem;
-  margin-bottom: var(--space-2);
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-bottom: var(--space-3);
+  color: var(--text-primary);
 }
 
 .step-content p {
-  font-size: 0.9375rem;
+  font-size: 1rem;
   color: var(--text-secondary);
   margin: 0;
+  line-height: 1.7;
 }
 
 .step-connector {
-  width: 80px;
-  height: 2px;
-  background: linear-gradient(90deg, var(--primary-300), var(--secondary-300));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  color: var(--primary-400);
   flex-shrink: 0;
+  font-size: 1.5rem;
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .step-connector {
+    display: flex;
+  }
+  
+  .step-connector::before {
+    content: '→';
+    font-weight: 300;
+    opacity: 0.6;
+  }
 }
 
 /* CTA Section */
