@@ -33,6 +33,13 @@ Get customized diet recommendations based on your health goals, dietary preferen
 ### 💡 Health Insights
 Receive AI-powered insights and suggestions to improve your eating habits and achieve your fitness goals.
 
+### 🤖 AI Nutrition Chatbot
+A 24/7 personal nutrition assistant powered by Llama 3.3.
+- **Smart Suggestions**: Quick answers to common nutrition questions
+- **Context Aware**: Remembers recent conversation history
+- **Private & Secure**: Secure backend proxy for API safety
+- **Floating Widget**: Accessible from anywhere in the app
+
 ### 📈 Progress Tracking
 Monitor your health journey with comprehensive analytics and trend visualizations.
 

@@ -10,6 +10,7 @@ import foodRoutes from './routes/food.js';
 import geminiRoutes from './routes/gemini.js';
 import visionRoutes from './routes/vision.js';
 import groqRoutes from './routes/groq.js';
+import chatRoutes from './routes/chat.js';
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.use('/api/food', foodRoutes);
 app.use('/api/gemini', geminiRoutes);
 app.use('/api/vision', visionRoutes);
 app.use('/api/groq', groqRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Initialize database and start server
 async function startServer() {

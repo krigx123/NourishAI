@@ -16,6 +16,7 @@ import HealthInsights from './pages/HealthInsights';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
 import MealLogs from './pages/MealLogs';
+import ChatInterface from './components/ChatInterface';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }) {
@@ -119,6 +120,7 @@ function AppContent() {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
+        <ChatInterface />
       </div>
     </Router>
   );
