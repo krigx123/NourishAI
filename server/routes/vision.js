@@ -13,7 +13,9 @@ const SKIP_LABELS = [
   'food', 'ingredient', 'recipe', 'dish', 'meal', 'cuisine', 'staple food', 
   'breakfast', 'lunch', 'dinner', 'cooking', 'tableware', 'dishware', 
   'plate', 'bowl', 'natural foods', 'comfort food', 'fast food', 
-  'produce', 'vegetable', 'fruit', 'serveware', 'condiment', 'garnish'
+  'produce', 'vegetable', 'fruit', 'serveware', 'condiment', 'garnish',
+  // Colors to skip
+  'yellow', 'orange', 'red', 'green', 'blue', 'purple', 'black', 'white', 'brown', 'pink', 'color'
 ];
 
 /**
