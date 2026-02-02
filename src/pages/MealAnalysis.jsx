@@ -901,27 +901,22 @@ function MealAnalysis() {
 
             <div className="results-grid">
               <Card className="calorie-card">
-                {/* Serving Size Slider */}
-                <div className="serving-slider-container">
-                  <div className="serving-slider-header">
-                    <span className="serving-label">Serving Size</span>
-                    <span className="serving-value">{servingMultiplier}x</span>
+                {/* Serving Size Selector */}
+                <div className="serving-size-box">
+                  <div className="serving-header">
+                    <span>Serving Size</span>
+                    <span className="serving-badge">{servingMultiplier}x</span>
                   </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="4"
-                    step="0.5"
-                    value={servingMultiplier}
-                    onChange={(e) => setServingMultiplier(parseFloat(e.target.value))}
-                    className="serving-slider"
-                  />
-                  <div className="serving-markers">
-                    <span>0x</span>
-                    <span>1x</span>
-                    <span>2x</span>
-                    <span>3x</span>
-                    <span>4x</span>
+                  <div className="serving-options">
+                    {[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4].map(size => (
+                      <button 
+                        key={size}
+                        className={`serving-option ${servingMultiplier === size ? 'active' : ''}`}
+                        onClick={() => setServingMultiplier(size)}
+                      >
+                        {size}x
+                      </button>
+                    ))}
                   </div>
                 </div>
                 <div className="calorie-display">
@@ -941,36 +936,25 @@ function MealAnalysis() {
 
               <Card className="macros-card">
                 <h3>Macronutrients</h3>
-                <div className="macro-chart-wrapper">
-                  <div className="pie-container">
-                    <ResponsiveContainer width={160} height={160}>
-                      <PieChart>
-                        <Pie
-                          data={currentMacros}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={70}
-                          paddingAngle={3}
-                          dataKey="value"
-                        >
-                          {currentMacros.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="macro-legend">
-                    {currentMacros.map((macro, index) => (
-                      <div key={index} className="legend-item">
-                        <span className="legend-dot" style={{ background: macro.color }}></span>
-                        <span className="legend-name">{macro.name}</span>
-                        <span className="legend-value">{macro.value}g</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="macro-chart-center">
+                  <ResponsiveContainer width={180} height={180}>
+                    <PieChart>
+                      <Pie
+                        data={currentMacros}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={80}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {currentMacros.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
               </Card>
 

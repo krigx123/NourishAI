@@ -1038,133 +1038,81 @@
 }
 
 /* ============================================
-   Serving Size Slider
+   Serving Size Selector (Button Grid)
    ============================================ */
-.serving-slider-container {
-  padding: 0.75rem 1rem 1rem;
+.serving-size-box {
   background: rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-lg);
+  padding: 0.75rem;
   margin-bottom: 1rem;
 }
 
-.serving-slider-header {
+.serving-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.serving-slider-header .serving-label {
+  margin-bottom: 0.5rem;
   font-size: 0.875rem;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
 }
 
-.serving-slider-header .serving-value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: white;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.25rem 0.75rem;
+.serving-badge {
+  background: rgba(255, 255, 255, 0.25);
+  padding: 0.25rem 0.625rem;
   border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 1rem;
+  color: white;
 }
 
-.serving-slider {
-  width: 100%;
-  height: 6px;
-  -webkit-appearance: none;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 3px;
-  outline: none;
-  cursor: pointer;
+.serving-options {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.375rem;
 }
 
-.serving-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 20px;
-  height: 20px;
-  background: white;
-  border-radius: 50%;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-  transition: transform 0.15s ease;
-}
-
-.serving-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
-}
-
-.serving-slider::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  background: white;
-  border-radius: 50%;
-  cursor: pointer;
+.serving-option {
+  padding: 0.375rem 0;
   border: none;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.serving-markers {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 0.5rem;
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 500;
+.serving-option:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.serving-option.active {
+  background: white;
+  color: var(--primary-600);
 }
 
 /* ============================================
-   Improved Pie Chart Styling
+   Macronutrients Pie Chart (Centered)
    ============================================ */
 .macros-card {
-  padding: 1.25rem;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .macros-card h3 {
   text-align: center;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
   font-size: 1rem;
 }
 
-.macro-chart-wrapper {
+.macro-chart-center {
   display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 1rem;
-}
-
-.pie-container {
-  flex-shrink: 0;
-}
-
-.macro-legend {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.legend-item {
-  display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8125rem;
-}
-
-.legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.legend-name {
-  color: var(--text-secondary);
-  min-width: 50px;
-}
-
-.legend-value {
-  font-weight: 600;
-  color: var(--text-primary);
 }
 
 .macro-chart {
