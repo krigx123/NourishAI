@@ -15,10 +15,13 @@ NourishAI is a modern, full-stack AI-powered nutrition tracking and diet recomme
 ## ✨ Features
 
 ### 🍽️ Meal Analysis
-Analyze Indian meals instantly using **Local Hybrid AI** (MobileNet + Pre-indexed Dataset Mapping) and get detailed nutritional breakdowns.
-- **Offline Capable**: Runs entirely in the browser using MobileNet.
-- **Dataset Integration**: Prioritizes local dataset matches for 100% accuracy on known files.
-- **Multi-Item Tracking**: Scan multiple items to build a complete meal log.
+Analyze Indian meals instantly using **Cloud Vision API + Groq AI** and get detailed nutritional breakdowns.
+- **Google Cloud Vision**: Accurate food detection with confidence scoring
+- **Groq AI Integration**: Real-time nutritional analysis powered by LLaMA
+- **Smart Detection**: Automatically identifies rice, paneer, rotis, curries, and 100+ Indian foods
+- **Serving Size Slider**: Adjust portions from 0x to 4x with real-time nutrition updates
+- **Drag & Drop**: Upload images directly from web or file explorer
+- **Multi-Item Tracking**: Scan multiple items to build a complete meal log
 
 ### 📊 Nutrition Tracking
 Track your daily nutritional intake with intuitive charts and progress indicators.

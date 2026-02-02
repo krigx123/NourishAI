@@ -47,6 +47,8 @@ function MealAnalysis() {
   const [mealItems, setMealItems] = useState([]);
   const [showMealSummary, setShowMealSummary] = useState(false);
   const [aiStatus, setAiStatus] = useState('loading');
+  const [servingMultiplier, setServingMultiplier] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
   const searchRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -88,6 +90,57 @@ function MealAnalysis() {
         setSelectedImage(reader.result);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  // Drag and drop handlers for web images
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    // Check for dropped files first
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (file.type.startsWith('image/')) {
+        setSelectedFileName(file.name);
+        const reader = new FileReader();
+        reader.onloadend = () => setSelectedImage(reader.result);
+        reader.readAsDataURL(file);
+        return;
+      }
+    }
+    
+    // Check for image URL (dragged from web)
+    const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+    if (url && (url.match(/\.(jpg|jpeg|png|gif|webp)$/i) || url.includes('image'))) {
+      setSaveMessage({ type: 'info', text: '🔄 Loading image from web...' });
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setSelectedImage(reader.result);
+          setSelectedFileName('web-image.jpg');
+          setSaveMessage({ type: 'success', text: '✅ Image loaded from web!' });
+        };
+        reader.readAsDataURL(blob);
+      } catch (error) {
+        console.error('Failed to load image from URL:', error);
+        setSaveMessage({ type: 'error', text: 'Could not load image. Try downloading first.' });
+      }
     }
   };
 
@@ -470,10 +523,10 @@ function MealAnalysis() {
   };
 
   const currentMacros = analysisResult ? [
-    { name: 'Protein', value: analysisResult.protein, color: '#10b981' },
-    { name: 'Carbs', value: analysisResult.carbs, color: '#3b82f6' },
-    { name: 'Fats', value: analysisResult.fats, color: '#f59e0b' },
-    { name: 'Fiber', value: analysisResult.fiber, color: '#8b5cf6' }
+    { name: 'Protein', value: Math.round(analysisResult.protein * servingMultiplier), color: '#10b981' },
+    { name: 'Carbs', value: Math.round(analysisResult.carbs * servingMultiplier), color: '#3b82f6' },
+    { name: 'Fats', value: Math.round(analysisResult.fats * servingMultiplier), color: '#f59e0b' },
+    { name: 'Fiber', value: Math.round(analysisResult.fiber * servingMultiplier), color: '#8b5cf6' }
   ] : [];
 
   const getCategoryFoods = () => {
@@ -535,23 +588,23 @@ function MealAnalysis() {
                  </div>
                </Card>
                
-               <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+               <div className="meal-items-list">
                   {mealItems.map(item => (
-                    <Card key={item.id} className="food-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexDirection: 'row', padding: '1rem', margin: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <span style={{ fontSize: '2rem' }}>{item.image}</span>
-                        <div>
-                          <strong style={{ display: 'block', fontSize: '1.1rem' }}>{item.foodName}</strong>
-                          <div style={{ fontSize: '0.9rem', color: '#666' }}>{item.calories} kcal • {item.protein}g P • {item.carbs}g C</div>
+                    <div key={item.id} className="meal-item-card">
+                      <div className="meal-item-info">
+                        <span className="meal-item-emoji">{item.image}</span>
+                        <div className="meal-item-details">
+                          <h4>{item.foodName}</h4>
+                          <p>{item.calories} kcal • {item.protein}g P • {item.carbs}g C • {item.fats}g F</p>
                         </div>
                       </div>
                       <button 
+                        className="meal-item-remove"
                         onClick={() => handleRemoveFromMeal(item.id)}
-                        style={{ background: '#fee2e2', color: '#ef4444', border: 'none', padding: '0.6rem', borderRadius: '0.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
                         <Trash2 size={18}/>
                       </button>
-                    </Card>
+                    </div>
                   ))}
                </div>
             </div>
@@ -612,7 +665,12 @@ function MealAnalysis() {
             {analysisMode === 'upload' ? (
               <>
                 <Card className="upload-card">
-                  <div className={`upload-zone ${selectedImage ? 'has-image' : ''}`}>
+                  <div 
+                    className={`upload-zone ${selectedImage ? 'has-image' : ''} ${isDragging ? 'dragover' : ''}`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                  >
                     {selectedImage ? (
                       <div className="preview-container">
                         <img 
@@ -629,11 +687,11 @@ function MealAnalysis() {
                         <div className="upload-icon">
                           <Camera size={48} />
                         </div>
-                        <h3>Upload Food Image</h3>
-                        <p>Take a photo or upload from gallery</p>
+                        <h3>{isDragging ? 'Drop Image Here' : 'Upload Food Image'}</h3>
+                        <p>{isDragging ? 'Release to upload' : 'Take a photo, upload, or drag from web'}</p>
                         <div className="upload-hint">
                           <ImageIcon size={16} />
-                          AI will automatically detect the food
+                          Supports drag & drop from browser
                         </div>
                       </div>
                     )}
@@ -843,8 +901,31 @@ function MealAnalysis() {
 
             <div className="results-grid">
               <Card className="calorie-card">
+                {/* Serving Size Slider */}
+                <div className="serving-slider-container">
+                  <div className="serving-slider-header">
+                    <span className="serving-label">Serving Size</span>
+                    <span className="serving-value">{servingMultiplier}x</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="4"
+                    step="0.5"
+                    value={servingMultiplier}
+                    onChange={(e) => setServingMultiplier(parseFloat(e.target.value))}
+                    className="serving-slider"
+                  />
+                  <div className="serving-markers">
+                    <span>0x</span>
+                    <span>1x</span>
+                    <span>2x</span>
+                    <span>3x</span>
+                    <span>4x</span>
+                  </div>
+                </div>
                 <div className="calorie-display">
-                  <span className="calorie-value">{analysisResult.calories}</span>
+                  <span className="calorie-value">{Math.round(analysisResult.calories * servingMultiplier)}</span>
                   <span className="calorie-label">Calories</span>
                 </div>
                 <div className="health-score">
@@ -860,26 +941,36 @@ function MealAnalysis() {
 
               <Card className="macros-card">
                 <h3>Macronutrients</h3>
-                <div className="macro-chart">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={currentMacros}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {currentMacros.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
+                <div className="macro-chart-wrapper">
+                  <div className="pie-container">
+                    <ResponsiveContainer width={160} height={160}>
+                      <PieChart>
+                        <Pie
+                          data={currentMacros}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={70}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          {currentMacros.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="macro-legend">
+                    {currentMacros.map((macro, index) => (
+                      <div key={index} className="legend-item">
+                        <span className="legend-dot" style={{ background: macro.color }}></span>
+                        <span className="legend-name">{macro.name}</span>
+                        <span className="legend-value">{macro.value}g</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </Card>
 
@@ -888,23 +979,23 @@ function MealAnalysis() {
                 <div className="macro-list">
                   <div className="macro-item protein">
                     <span className="macro-name">Protein</span>
-                    <span className="macro-value">{analysisResult.protein}g</span>
-                    <div className="macro-bar" style={{ width: `${Math.min(analysisResult.protein * 2, 100)}%` }}></div>
+                    <span className="macro-value">{Math.round(analysisResult.protein * servingMultiplier)}g</span>
+                    <div className="macro-bar" style={{ width: `${Math.min(analysisResult.protein * servingMultiplier * 2, 100)}%` }}></div>
                   </div>
                   <div className="macro-item carbs">
                     <span className="macro-name">Carbohydrates</span>
-                    <span className="macro-value">{analysisResult.carbs}g</span>
-                    <div className="macro-bar" style={{ width: `${Math.min(analysisResult.carbs, 100)}%` }}></div>
+                    <span className="macro-value">{Math.round(analysisResult.carbs * servingMultiplier)}g</span>
+                    <div className="macro-bar" style={{ width: `${Math.min(analysisResult.carbs * servingMultiplier, 100)}%` }}></div>
                   </div>
                   <div className="macro-item fats">
                     <span className="macro-name">Fats</span>
-                    <span className="macro-value">{analysisResult.fats}g</span>
-                    <div className="macro-bar" style={{ width: `${Math.min(analysisResult.fats * 2, 100)}%` }}></div>
+                    <span className="macro-value">{Math.round(analysisResult.fats * servingMultiplier)}g</span>
+                    <div className="macro-bar" style={{ width: `${Math.min(analysisResult.fats * servingMultiplier * 2, 100)}%` }}></div>
                   </div>
                   <div className="macro-item fiber">
                     <span className="macro-name">Fiber</span>
-                    <span className="macro-value">{analysisResult.fiber}g</span>
-                    <div className="macro-bar" style={{ width: `${Math.min(analysisResult.fiber * 5, 100)}%` }}></div>
+                    <span className="macro-value">{Math.round(analysisResult.fiber * servingMultiplier)}g</span>
+                    <div className="macro-bar" style={{ width: `${Math.min(analysisResult.fiber * servingMultiplier * 5, 100)}%` }}></div>
                   </div>
                 </div>
               </Card>

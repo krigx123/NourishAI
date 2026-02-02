@@ -191,22 +191,62 @@ function processIndianMeal(labels) {
     detectionNote = 'Detected curry/dal without bread';
     
   } else {
-    // LEVEL 3: Neutral fallback - check for Indian context as qualifier
-    const hasIndianContext = labels.some(l => {
+    // LEVEL 3: Smart high-confidence detection
+    // Accept ANY high-confidence label that's not generic
+    const recognizableFood = relevantLabels.find(l => {
       const lower = l.name.toLowerCase();
-      return lower.includes('indian') || lower.includes('punjabi') || 
-             lower.includes('south indian') || lower.includes('north indian');
+      const confidence = l.confidence;
+      
+      // Generic/vague labels to skip (already in SKIP_LABELS but check again)
+      const vagueLables = [
+        'food', 'ingredient', 'recipe', 'dish', 'meal', 'cuisine', 
+        'staple food', 'breakfast', 'lunch', 'dinner', 'cooking',
+        'tableware', 'dishware', 'plate', 'bowl', 'natural foods',
+        'comfort food', 'fast food', 'produce', 'vegetable', 'fruit'
+      ];
+      
+      // Skip if it's a vague label
+      if (vagueLables.some(vague => lower === vague || lower.includes(vague + ' '))) {
+        return false;
+      }
+      
+      // For 90%+ confidence, accept it directly (e.g., "Rice", "Tomato", "Paneer")
+      if (confidence >= 90) {
+        return true;
+      }
+      
+      // For 85-89% confidence, be more cautious - only accept if it's specific
+      // (Not something like "Spiced rice" or "Cherry tomato" - prefer simpler)
+      if (confidence >= 85 && !lower.includes(' ')) {
+        return true;
+      }
+      
+      return false;
     });
     
-    // Neutral primary meal, Indian only as qualifier
-    if (hasIndianContext) {
-      primaryMeal = 'Mixed Meal';
-      detectionNote = 'Indian-style cuisine detected';
-      alternatives.push({ name: 'Home-style Meal', confidence: 'low' });
+    if (recognizableFood) {
+      // Use the food name directly
+      primaryMeal = recognizableFood.name;
+      detectionNote = `Detected ${recognizableFood.name} (${recognizableFood.confidence}% confidence)`;
+      alternatives.push({ name: 'Simple Food', confidence: 'high' });
     } else {
-      primaryMeal = 'Mixed Meal';
-      detectionNote = 'Cuisine unclear';
-      alternatives.push({ name: 'Prepared Food', confidence: 'low' });
+      // LEVEL 4: Neutral fallback - check for Indian context as qualifier
+      const hasIndianContext = labels.some(l => {
+        const lower = l.name.toLowerCase();
+        return lower.includes('indian') || lower.includes('punjabi') || 
+               lower.includes('south indian') || lower.includes('north indian');
+      });
+      
+      // Neutral primary meal, Indian only as qualifier
+      if (hasIndianContext) {
+        primaryMeal = 'Mixed Meal';
+        detectionNote = 'Indian-style cuisine detected';
+        alternatives.push({ name: 'Home-style Meal', confidence: 'low' });
+      } else {
+        primaryMeal = 'Mixed Meal';
+        detectionNote = 'Cuisine unclear';
+        alternatives.push({ name: 'Prepared Food', confidence: 'low' });
+      }
     }
   }
   
