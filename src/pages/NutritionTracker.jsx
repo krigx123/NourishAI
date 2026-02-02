@@ -89,9 +89,23 @@ function NutritionTracker() {
     }
   };
 
-  const saveLimits = () => {
-    localStorage.setItem('nutritionLimits', JSON.stringify(customLimits));
-    setShowLimitsModal(false);
+  const saveLimits = async () => {
+    try {
+      // Save local limits (custom macro distribution)
+      localStorage.setItem('nutritionLimits', JSON.stringify(customLimits));
+      
+      // Sync calorie goal with backend for Health Insights
+      await userAPI.updateProfile({ 
+        targetCalories: customLimits.calories 
+      });
+      
+      // Refresh dashboard data to reflect new goals
+      fetchData();
+      
+      setShowLimitsModal(false);
+    } catch (error) {
+      console.error('Error saving limits:', error);
+    }
   };
 
   // Calculate data based on time range

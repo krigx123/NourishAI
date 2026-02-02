@@ -62,7 +62,7 @@ router.get('/profile', authenticate, async (req, res) => {
 
 // Update user profile
 router.put('/profile', authenticate, async (req, res) => {
-  const { name, age, weight, height, gender, dietType, allergies, goals, activityLevel } = req.body;
+  const { name, age, weight, height, gender, dietType, allergies, goals, activityLevel, targetCalories: explicitTargetCalories } = req.body;
 
   try {
     // Update user name if provided
@@ -70,9 +70,11 @@ router.put('/profile', authenticate, async (req, res) => {
       await pool.query('UPDATE users SET name = $1 WHERE id = $2', [name, req.userId]);
     }
 
-    // Calculate new target calories
-    let targetCalories = 2000;
-    if (weight && height && age && gender) {
+    // specific target calories logic
+    let finalTargetCalories = explicitTargetCalories;
+
+    // If no explicit target provided, try to calculate BMR if we have the data
+    if (!finalTargetCalories && weight && height && age && gender) {
       let bmr;
       if (gender === 'male') {
         bmr = 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
@@ -88,14 +90,34 @@ router.put('/profile', authenticate, async (req, res) => {
         'Very Active': 1.9
       };
       
-      targetCalories = Math.round(bmr * (activityMultipliers[activityLevel] || 1.55));
+      finalTargetCalories = Math.round(bmr * (activityMultipliers[activityLevel] || 1.55));
       
       if (goals && goals.includes('Weight Loss')) {
-        targetCalories -= 500;
+        finalTargetCalories -= 500;
       } else if (goals && goals.includes('Muscle Gain')) {
-        targetCalories += 300;
+        finalTargetCalories += 300;
       }
     }
+
+    // Get existing profile first to merge data for partial updates
+    const currentProfileResult = await pool.query('SELECT * FROM user_profiles WHERE user_id = $1', [req.userId]);
+    const currentProfile = currentProfileResult.rows[0] || {};
+
+    // If we still don't have a new target calories, use the old one or default
+    if (!finalTargetCalories) {
+        finalTargetCalories = currentProfile.target_calories || 2000;
+    }
+
+    // Prepare values for update with fallbacks to current values
+    const newAge = age !== undefined ? age : currentProfile.age;
+    const newWeight = weight !== undefined ? weight : currentProfile.weight;
+    const newHeight = height !== undefined ? height : currentProfile.height;
+    const newGender = gender !== undefined ? gender : currentProfile.gender;
+    const newDietType = dietType !== undefined ? dietType : currentProfile.diet_type;
+    const newAllergies = allergies !== undefined ? allergies : currentProfile.allergies || [];
+    const newGoals = goals !== undefined ? goals : currentProfile.goals || [];
+    const newActivityLevel = activityLevel !== undefined ? activityLevel : currentProfile.activity_level;
+
 
     // Update or insert profile
     await pool.query(
@@ -104,10 +126,10 @@ router.put('/profile', authenticate, async (req, res) => {
        ON CONFLICT (user_id) 
        DO UPDATE SET age = $2, weight = $3, height = $4, gender = $5, diet_type = $6, 
                      allergies = $7, goals = $8, activity_level = $9, target_calories = $10, updated_at = CURRENT_TIMESTAMP`,
-      [req.userId, age, weight, height, gender, dietType, allergies || [], goals || [], activityLevel, targetCalories]
+      [req.userId, newAge, newWeight, newHeight, newGender, newDietType, newAllergies, newGoals, newActivityLevel, finalTargetCalories]
     );
 
-    res.json({ message: 'Profile updated successfully', targetCalories });
+    res.json({ message: 'Profile updated successfully', targetCalories: finalTargetCalories });
   } catch (error) {
     console.error('Error updating profile:', error);
     res.status(500).json({ error: 'Failed to update profile' });
