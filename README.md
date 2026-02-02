@@ -96,10 +96,11 @@ Real-time system monitoring with database stats, recent user activity, and API h
    ```env
    DATABASE_URL=your-supabase-connection-string
    JWT_SECRET=your-secret-key
+   GROQ_API_KEY=your-groq-api-key
    PORT=5000
    ```
 
-5. **Start the backend server**
+6. **Start the backend server**
    ```bash
    cd server
    node index.js
