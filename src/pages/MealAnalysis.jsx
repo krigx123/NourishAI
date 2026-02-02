@@ -33,6 +33,8 @@ function MealAnalysis() {
   const [foodInput, setFoodInput] = useState('');
   const [selectedFileName, setSelectedFileName] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [apiSearchResults, setApiSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -50,6 +52,7 @@ function MealAnalysis() {
   const [servingMultiplier, setServingMultiplier] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const searchRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
   const fileInputRef = useRef(null);
 
   const categories = ['All', ...getAllCategories()];
@@ -61,14 +64,49 @@ function MealAnalysis() {
   }, []);
 
   useEffect(() => {
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
     if (foodInput.length >= 2) {
-      const results = searchFoods(foodInput);
-      setSearchResults(results);
-      setShowDropdown(results.length > 0);
+      // Immediate local search
+      const localResults = searchFoods(foodInput);
+      setSearchResults(localResults);
+      setShowDropdown(true);
+
+      // Debounced API search (500ms)
+      setIsSearching(true);
+      searchTimeoutRef.current = setTimeout(async () => {
+        try {
+          const apiResult = await groqAPI.searchFood(foodInput);
+          if (apiResult.success && apiResult.foods) {
+            // Filter out duplicates from API results
+            const localNames = localResults.map(f => f.name.toLowerCase());
+            const uniqueApiResults = apiResult.foods.filter(
+              f => !localNames.includes(f.name.toLowerCase())
+            );
+            setApiSearchResults(uniqueApiResults);
+          }
+        } catch (error) {
+          console.log('API search fallback to local:', error.message);
+          setApiSearchResults([]);
+        } finally {
+          setIsSearching(false);
+        }
+      }, 500);
     } else {
       setSearchResults([]);
+      setApiSearchResults([]);
       setShowDropdown(false);
+      setIsSearching(false);
     }
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, [foodInput]);
 
   useEffect(() => {
@@ -791,24 +829,71 @@ function MealAnalysis() {
                     
                     {showDropdown && (
                       <div className="search-dropdown">
-                        {searchResults.map((food, index) => (
-                          <div 
-                            key={index} 
-                            className="search-result-item"
-                            onClick={() => handleSelectFood(food)}
-                          >
-                            <span className="result-emoji">{food.image}</span>
-                            <div className="result-info">
-                              <span className="result-name">{food.name}</span>
-                              <span className="result-details">{food.category} • {food.calories} kcal</span>
-                            </div>
-                            <span className="result-score" style={{ 
-                              color: food.healthScore >= 70 ? '#10b981' : food.healthScore >= 50 ? '#f59e0b' : '#ef4444' 
-                            }}>
-                              {food.healthScore}
-                            </span>
+                        {/* Local Database Results */}
+                        {searchResults.length > 0 && (
+                          <div className="search-section">
+                            <div className="search-section-header">📱 Local Database</div>
+                            {searchResults.map((food, index) => (
+                              <div 
+                                key={`local-${index}`} 
+                                className="search-result-item"
+                                onClick={() => handleSelectFood(food)}
+                              >
+                                <span className="result-emoji">{food.image}</span>
+                                <div className="result-info">
+                                  <span className="result-name">{food.name}</span>
+                                  <span className="result-details">{food.category} • {food.calories} kcal</span>
+                                </div>
+                                <span className="result-score" style={{ 
+                                  color: food.healthScore >= 70 ? '#10b981' : food.healthScore >= 50 ? '#f59e0b' : '#ef4444' 
+                                }}>
+                                  {food.healthScore}
+                                </span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
+
+                        {/* AI Search Results */}
+                        {isSearching && (
+                          <div className="search-section">
+                            <div className="search-section-header">🧠 AI Search...</div>
+                            <div className="search-loading">
+                              <Loader size={16} className="spin" /> Searching with Llama AI...
+                            </div>
+                          </div>
+                        )}
+
+                        {!isSearching && apiSearchResults.length > 0 && (
+                          <div className="search-section">
+                            <div className="search-section-header">🌐 AI Results</div>
+                            {apiSearchResults.map((food, index) => (
+                              <div 
+                                key={`api-${index}`} 
+                                className="search-result-item api-result"
+                                onClick={() => handleSelectFood(food)}
+                              >
+                                <span className="result-emoji">{food.image || '🍽️'}</span>
+                                <div className="result-info">
+                                  <span className="result-name">{food.name}</span>
+                                  <span className="result-details">{food.serving} • {food.calories} kcal</span>
+                                </div>
+                                <span className="result-score" style={{ 
+                                  color: food.healthScore >= 70 ? '#10b981' : food.healthScore >= 50 ? '#f59e0b' : '#ef4444' 
+                                }}>
+                                  {food.healthScore}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* No results message */}
+                        {searchResults.length === 0 && apiSearchResults.length === 0 && !isSearching && (
+                          <div className="search-no-results">
+                            No foods found. Try different keywords.
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

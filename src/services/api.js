@@ -260,6 +260,22 @@ export const groqAPI = {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error);
     return data;
+  },
+
+  searchFood: async (query) => {
+    const response = await fetch(`${API_BASE_URL}/groq/search`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ query })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      if (data.useFallback) {
+        return { success: false, useFallback: true, error: data.error };
+      }
+      throw new Error(data.error);
+    }
+    return data;
   }
 };
 
