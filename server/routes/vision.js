@@ -45,19 +45,39 @@ function processIndianMeal(labels) {
     !SKIP_LABELS.includes(l.name.toLowerCase())
   );
   
+  // Indian bread types to detect
+  const BREAD_KEYWORDS = ['puri', 'poori', 'roti', 'chapati', 'naan', 'paratha', 'bhature', 'kulcha', 'bhakri', 'jolada rotti'];
+  
+  // Curry/sabji types to detect  
+  const CURRY_KEYWORDS = ['masala', 'curry', 'dal', 'sabji', 'sabzi', 'korma', 'paneer', 'biryani', 'pulao'];
+  
+  // Rice types
+  const RICE_KEYWORDS = ['rice', 'biryani', 'pulao', 'khichdi', 'fried rice'];
+  
   // Decision logic
   let primaryMeal = null;
   let alternatives = [];
   let detectionNote = '';
+  let detectedItems = [];
 
-  // STRATEGY: Find the most specific, highest confidence label
-  // We skip vague terms and take the best remaining candidate
+  // Search ALL labels (not filtered) for curry/bread to be more inclusive
+  // Find curry/main dish item
+  const curryItem = labels.find(l => 
+    CURRY_KEYWORDS.some(kw => l.name.toLowerCase().includes(kw))
+  );
   
-  const bestCandidate = relevantLabels.find(l => {
-    const lower = l.name.toLowerCase();
-    // Additional generic check just in case
-    return !SKIP_LABELS.some(skip => lower === skip || lower.includes(`${skip} `));
-  });
+  // Find bread item - search all labels to catch Puri, Roti etc even if filtered
+  const breadItem = labels.find(l => 
+    BREAD_KEYWORDS.some(kw => l.name.toLowerCase().includes(kw))
+  );
+  
+  // Find rice item
+  const riceItem = labels.find(l => 
+    RICE_KEYWORDS.some(kw => l.name.toLowerCase().includes(kw)) &&
+    !l.name.toLowerCase().includes('masala')
+  );
+  
+  console.log('📷 Multi-food detection:', { curry: curryItem?.name, bread: breadItem?.name, rice: riceItem?.name });
 
   // Check for Indian Context
   const hasIndianContext = labels.some(l => {
@@ -70,39 +90,68 @@ function processIndianMeal(labels) {
   const genericCurry = hasGenericCurry(relevantLabels);
   const dalPresent = hasDal(relevantLabels);
 
-  if (bestCandidate) {
-    primaryMeal = bestCandidate.name;
-    detectionNote = `Detected ${bestCandidate.name} (${bestCandidate.confidence}% confidence)`;
-    
-    // Add alternatives
-    relevantLabels
-      .filter(l => l.name !== bestCandidate.name)
-      .slice(0, 3)
-      .forEach(l => {
-        alternatives.push({ name: l.name, confidence: 'medium' });
-      });
-      
+  // BUILD MULTI-ITEM PRIMARY MEAL
+  if (curryItem) {
+    let name = curryItem.name;
+    // Rename generic labels to Dal for better UX (e.g. Curry + Chapati -> Dal + Chapati)
+    const lowerName = name.toLowerCase();
+    if (['curry', 'stew', 'gravy', 'legume'].includes(lowerName)) {
+      name = 'Dal';
+    }
+    detectedItems.push(name);
+  }
+  if (breadItem && (!curryItem || breadItem.name.toLowerCase() !== curryItem?.name.toLowerCase())) {
+    detectedItems.push(breadItem.name);
+  }
+  if (riceItem && detectedItems.length < 3) {
+    detectedItems.push(riceItem.name);
+  }
+
+  // Combine detected items
+  if (detectedItems.length >= 2) {
+    // Multiple items detected - combine them
+    primaryMeal = detectedItems.join(' + ');
+    detectionNote = `Detected ${detectedItems.length} items: ${detectedItems.join(', ')}`;
+  } else if (detectedItems.length === 1) {
+    primaryMeal = detectedItems[0];
+    detectionNote = `Detected ${detectedItems[0]}`;
   } else {
-    // Fallback if no specific food found
-    if (hasIndianContext) {
+    // Fallback to best candidate
+    const bestCandidate = relevantLabels.find(l => {
+      const lower = l.name.toLowerCase();
+      return !SKIP_LABELS.some(skip => lower === skip || lower.includes(`${skip} `));
+    });
+    
+    if (bestCandidate) {
+      primaryMeal = bestCandidate.name;
+      detectionNote = `Detected ${bestCandidate.name} (${bestCandidate.confidence}% confidence)`;
+    } else if (hasIndianContext) {
       primaryMeal = 'Indian Mixed Meal';
       detectionNote = 'Indian cuisine detected (specific dish unclear)';
     } else {
       primaryMeal = 'Mixed Meal';
       detectionNote = 'Cuisine unclear';
     }
-    alternatives.push({ name: 'Prepared Food', confidence: 'low' });
   }
+
+  // Add remaining items as alternatives
+  relevantLabels
+    .filter(l => !detectedItems.includes(l.name))
+    .slice(0, 3)
+    .forEach(l => {
+      alternatives.push({ name: l.name, confidence: 'medium' });
+    });
   
   return {
     primaryMeal,
     alternatives,
     detectionNote,
-    specificDishes: bestCandidate ? [bestCandidate.name] : [],
-    breadType: null, // Removed hardcoded bread logic, assuming AI will identify "Naan" if prominent
+    specificDishes: detectedItems,
+    breadType: breadItem?.name || null,
     hasGenericCurry: genericCurry,
     hasDal: dalPresent,
     isIndianMeal: hasIndianContext,
+    multipleItems: detectedItems.length > 1,
     processedLabels: relevantLabels.map(l => ({
       original: l.name,
       confidence: l.confidence

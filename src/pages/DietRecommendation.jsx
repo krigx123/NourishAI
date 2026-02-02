@@ -11,11 +11,14 @@ import {
   Moon,
   Flame,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Loader,
+  BookmarkCheck
 } from 'lucide-react';
 import { Card, Button } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
-import { dietPlans } from '../data/mockData';
+import { groqAPI, userAPI } from '../services/api';
+import { dietPlans as staticDietPlans } from '../data/mockData';
 import './DietRecommendation.css';
 
 /**
@@ -24,13 +27,32 @@ import './DietRecommendation.css';
 function DietRecommendation() {
   const { user } = useAuth();
   const [selectedGoal, setSelectedGoal] = useState(null);
-  const [customCalories, setCustomCalories] = useState(null);
+  const [currentPlan, setCurrentPlan] = useState(null);
+  const [isLoadingPlan, setIsLoadingPlan] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isPersonalized, setIsPersonalized] = useState(false);
 
+  // Load cached plan on mount
+  useEffect(() => {
+    const loadCachedPlan = async () => {
+      try {
+        // Try to get cached diet plan
+        const cached = await userAPI.getCachedAI('diet_plan');
+        if (cached.cached && cached.data) {
+          setCurrentPlan(cached.data.plan);
+          setSelectedGoal(cached.data.goalId);
+          setMessage({ type: 'info', text: '📋 Loaded your last generated plan' });
+        }
+      } catch (error) {
+        console.log('No cached diet plan found');
+      }
+    };
+    loadCachedPlan();
+  }, []);
+
   // Auto-select goal based on user's saved goals
   useEffect(() => {
-    if (user?.goals?.length > 0) {
+    if (user?.goals?.length > 0 && !currentPlan) {
       const goalMap = {
         'Weight Loss': 'weightLoss',
         'Muscle Gain': 'muscleGain',
@@ -60,68 +82,95 @@ function DietRecommendation() {
     dinner: Moon
   };
 
-  // Calculate personalized calories
-  const getPersonalizedCalories = () => {
-    if (customCalories) return customCalories;
-    if (!user?.targetCalories) {
-      return dietPlans[selectedGoal]?.calories || 1800;
-    }
+  // Fetch AI-generated plan when goal changes
+  const fetchAIPlan = async (goalId) => {
+    setIsLoadingPlan(true);
+    setMessage({ type: '', text: '' });
     
-    // Adjust based on goal
-    const base = user.targetCalories;
-    if (selectedGoal === 'weightLoss') return base - 300;
-    if (selectedGoal === 'muscleGain') return base + 200;
-    return base;
-  };
-
-  // Generate personalized meal plan
-  const getPersonalizedPlan = () => {
-    if (!selectedGoal) return null;
-    
-    const basePlan = dietPlans[selectedGoal];
-    if (!basePlan) return null;
-
-    const personalizedCalories = getPersonalizedCalories();
-    const calorieRatio = personalizedCalories / basePlan.calories;
-
-    // Scale the meals proportionally
-    const scaledMeals = {};
-    Object.entries(basePlan.meals).forEach(([mealType, meal]) => {
-      scaledMeals[mealType] = {
-        ...meal,
-        calories: Math.round(meal.calories * calorieRatio),
-        protein: Math.round(meal.protein * calorieRatio),
-        carbs: Math.round(meal.carbs * calorieRatio)
+    try {
+      const goalNames = {
+        weightLoss: 'Weight Loss',
+        muscleGain: 'Muscle Gain',
+        healthyLiving: 'Healthy Living'
       };
-    });
-
-    return {
-      ...basePlan,
-      name: user?.name ? `${user.name.split(' ')[0]}'s ${basePlan.name}` : basePlan.name,
-      calories: personalizedCalories,
-      description: `Personalized ${basePlan.description.toLowerCase()} based on your profile`,
-      meals: scaledMeals
-    };
-  };
-
-  const handleStartPlan = () => {
-    setMessage({ type: 'success', text: '✓ Plan activated! Check your dashboard for daily tracking.' });
-    // In a real app, this would save to the backend
-  };
-
-  const handleCustomizePlan = () => {
-    const newCalories = prompt('Enter your target daily calories:', getPersonalizedCalories());
-    if (newCalories && !isNaN(newCalories)) {
-      setCustomCalories(parseInt(newCalories));
-      setMessage({ type: 'success', text: `✓ Calories updated to ${newCalories} kcal/day` });
+      
+      const result = await groqAPI.getDietPlan(goalNames[goalId], user);
+      
+      if (result.success && result.plan) {
+        // Transform AI response to match expected format
+        const aiPlan = {
+          name: user?.name ? `${user.name.split(' ')[0]}'s ${goalNames[goalId]} Plan` : `${goalNames[goalId]} Plan`,
+          description: result.plan.insight || `AI-generated ${goalNames[goalId]} diet plan`,
+          calories: result.plan.totalCalories || 1800,
+          meals: {
+            breakfast: result.plan.breakfast || staticDietPlans[goalId]?.meals?.breakfast,
+            lunch: result.plan.lunch || staticDietPlans[goalId]?.meals?.lunch,
+            snack: result.plan.snack || staticDietPlans[goalId]?.meals?.snack,
+            dinner: result.plan.dinner || staticDietPlans[goalId]?.meals?.dinner
+          },
+          tips: result.plan.tips || []
+        };
+        setCurrentPlan(aiPlan);
+        setMessage({ type: 'success', text: '✨ AI-generated personalized plan ready!' });
+      } else {
+        throw new Error('AI plan generation failed');
+      }
+    } catch (error) {
+      console.log('Using static diet plan (AI unavailable):', error.message);
+      // Fallback to static plan
+      const staticPlan = staticDietPlans[goalId];
+      if (staticPlan) {
+        setCurrentPlan({
+          ...staticPlan,
+          name: user?.name ? `${user.name.split(' ')[0]}'s ${staticPlan.name}` : staticPlan.name
+        });
+        setMessage({ type: 'info', text: '📋 Using recommended plan template' });
+      }
+    } finally {
+      setIsLoadingPlan(false);
     }
   };
 
-  const handleSaveForLater = () => {
-    setMessage({ type: 'success', text: '✓ Plan saved! Access it anytime from your profile.' });
+  // Handle goal selection
+  const handleGoalSelect = async (goalId) => {
+    setSelectedGoal(goalId);
+    await fetchAIPlan(goalId);
   };
 
-  const currentPlan = selectedGoal ? getPersonalizedPlan() : null;
+  const handleStartPlan = async () => {
+    if (!currentPlan || !selectedGoal) return;
+    
+    try {
+      await userAPI.saveDietPlan(currentPlan, selectedGoal, true);
+      // Also cache it
+      await userAPI.setCachedAI('diet_plan', { plan: currentPlan, goalId: selectedGoal }, null, 168); // 1 week
+      setMessage({ type: 'success', text: '✓ Plan activated! Check your dashboard for daily tracking.' });
+    } catch (error) {
+      console.error('Error saving plan:', error);
+      setMessage({ type: 'error', text: 'Failed to save plan. Please try again.' });
+    }
+  };
+
+  const handleRegeneratePlan = () => {
+    if (selectedGoal) {
+      fetchAIPlan(selectedGoal);
+    }
+  };
+
+  const handleSaveForLater = async () => {
+    if (!currentPlan || !selectedGoal) return;
+    
+    try {
+      await userAPI.saveDietPlan(currentPlan, selectedGoal, false);
+      // Also cache it
+      await userAPI.setCachedAI('diet_plan', { plan: currentPlan, goalId: selectedGoal }, null, 168);
+      setMessage({ type: 'success', text: '✓ Plan saved! Access it anytime from your profile.' });
+    } catch (error) {
+      console.error('Error saving plan:', error);
+      setMessage({ type: 'error', text: 'Failed to save plan. Please try again.' });
+    }
+  };
+
 
   return (
     <div className="diet-page animate-fadeIn">
@@ -150,7 +199,7 @@ function DietRecommendation() {
         <div className="personalized-banner">
           <Sparkles size={18} />
           <span>Based on your goal: <strong>{user?.goals?.[0]}</strong></span>
-          <button onClick={() => { setSelectedGoal(null); setIsPersonalized(false); }}>
+          <button onClick={() => { setSelectedGoal(null); setCurrentPlan(null); setIsPersonalized(false); }}>
             <RefreshCw size={14} /> Change
           </button>
         </div>
@@ -171,8 +220,8 @@ function DietRecommendation() {
             return (
               <Card 
                 key={goal.id}
-                className={`goal-card ${selectedGoal === goal.id ? 'selected' : ''}`}
-                onClick={() => { setSelectedGoal(goal.id); setIsPersonalized(false); setMessage({ type: '', text: '' }); }}
+                className={`goal-card ${selectedGoal === goal.id ? 'selected' : ''} ${isLoadingPlan ? 'loading' : ''}`}
+                onClick={() => { handleGoalSelect(goal.id); setIsPersonalized(false); }}
               >
                 <div className="goal-icon" style={{ background: `${goal.color}15`, color: goal.color }}>
                   <IconComponent size={32} />
@@ -207,7 +256,8 @@ function DietRecommendation() {
 
           <div className="meals-grid">
             {Object.entries(currentPlan.meals).map(([mealType, meal]) => {
-              const MealIcon = mealIcons[mealType];
+              if (!meal) return null;
+              const MealIcon = mealIcons[mealType.toLowerCase()] || Sun;
               return (
                 <Card key={mealType} className={`meal-card ${mealType}`}>
                   <div className="meal-header">
@@ -233,7 +283,7 @@ function DietRecommendation() {
                       </span>
                     </div>
                     <div className="meal-items">
-                      {meal.items.map((item, index) => (
+                      {(meal.items || meal.foods || []).map((item, index) => (
                         <span key={index} className="meal-item">{item}</span>
                       ))}
                     </div>
@@ -245,10 +295,20 @@ function DietRecommendation() {
 
           <div className="plan-actions">
             <Button variant="gradient" onClick={handleStartPlan}>Start This Plan</Button>
-            <Button variant="outline" onClick={handleCustomizePlan}>Customize Calories</Button>
+            <Button variant="outline" onClick={handleRegeneratePlan} icon={<RefreshCw size={16} />}>
+              Regenerate with AI
+            </Button>
             <Button variant="ghost" onClick={handleSaveForLater}>Save for Later</Button>
           </div>
         </section>
+      )}
+
+      {isLoadingPlan && (
+        <div className="loading-state">
+          <Loader size={32} className="spinner" />
+          <h3>Generating your personalized plan...</h3>
+          <p>Our AI is creating the perfect diet plan for you</p>
+        </div>
       )}
 
       {!selectedGoal && (

@@ -98,6 +98,20 @@ export async function initializeDatabase() {
       )
     `);
 
+    // AI response cache table (for health tips, diet plans etc.)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ai_cache (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        cache_type VARCHAR(50) NOT NULL,
+        cache_key VARCHAR(255),
+        cache_data JSONB NOT NULL,
+        expires_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, cache_type, cache_key)
+      )
+    `);
+
     console.log('✅ Database tables initialized successfully');
   } catch (error) {
     console.error('❌ Error initializing database:', error);

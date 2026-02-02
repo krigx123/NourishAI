@@ -226,4 +226,166 @@ IMPORTANT: Return ONLY the JSON array, no explanation.`;
   }
 });
 
+/**
+ * Generate personalized health tips using Groq LLM
+ * POST /api/groq/health-tips
+ */
+router.post('/health-tips', authenticate, async (req, res) => {
+  const { userProfile } = req.body;
+  console.log('💡 Groq Health Tips: Generating for user');
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'Groq API key not configured' });
+  }
+
+  try {
+    const profileContext = userProfile ? 
+      `User Profile: Age ${userProfile.age || 'unknown'}, Goal: ${userProfile.goal || 'general health'}, Diet: ${userProfile.dietType || 'mixed'}` :
+      'General user seeking health advice';
+
+    const userPrompt = `${profileContext}
+
+Generate 4-6 personalized, actionable health tips for this user focusing on Indian foods and lifestyle.
+Each tip should be specific to their goals and preferences.
+
+Return JSON array (example structure):
+["Tip 1 specific to user", "Tip 2 specific to user", "Tip 3 specific to user", "Tip 4 specific to user"]
+
+IMPORTANT: Make tips personalized based on user profile. Return ONLY the JSON array.`;
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: 'You are a nutrition expert. Return ONLY valid JSON arrays.' },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 500
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Groq API request failed');
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '[]';
+    
+    let tips = [];
+    try {
+      const cleaned = content.replace(/```json\n?|\n?```/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+      tips = Array.isArray(parsed) ? parsed : (parsed.tips || parsed.healthTips || []);
+      console.log('💡 Groq Health Tips: Generated', tips.length, 'tips');
+    } catch (parseError) {
+      console.error('Failed to parse Groq health tips response:', content);
+      return res.status(500).json({ error: 'Failed to parse health tips' });
+    }
+
+    res.json({
+      success: true,
+      tips: tips,
+      source: 'groq'
+    });
+
+  } catch (error) {
+    console.error('Groq health tips error:', error);
+    res.status(500).json({ error: 'Failed to generate health tips' });
+  }
+});
+
+/**
+ * Generate personalized diet plan using Groq LLM
+ * POST /api/groq/diet-plan
+ */
+router.post('/diet-plan', authenticate, async (req, res) => {
+  const { goal, userProfile } = req.body;
+  console.log('🍽️ Groq Diet Plan: Generating for goal:', goal);
+
+  if (!goal) {
+    return res.status(400).json({ error: 'Goal is required' });
+  }
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'Groq API key not configured' });
+  }
+
+  try {
+    const profileContext = userProfile ? 
+      `User: Age ${userProfile.age || 'adult'}, Diet preference: ${userProfile.dietType || 'mixed'}, Activity: ${userProfile.activityLevel || 'moderate'}` :
+      'Average adult user';
+
+    const userPrompt = `Create a personalized Indian diet plan for: ${goal}
+${profileContext}
+
+Generate a complete day's meal plan with breakfast, lunch, snack, and dinner.
+Use authentic Indian foods appropriate for the goal.
+
+Return JSON:
+{
+  "breakfast": {"name": "Meal name", "description": "Brief description", "calories": 300, "items": ["item1", "item2"]},
+  "lunch": {"name": "Meal name", "description": "Brief description", "calories": 500, "items": ["item1", "item2"]},
+  "snack": {"name": "Meal name", "description": "Brief description", "calories": 150, "items": ["item1"]},
+  "dinner": {"name": "Meal name", "description": "Brief description", "calories": 450, "items": ["item1", "item2"]},
+  "totalCalories": 1400,
+  "tips": ["Tip 1", "Tip 2"]
+}
+
+IMPORTANT: Use realistic calorie values. Return ONLY valid JSON.`;
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: 'You are a nutrition expert specializing in Indian cuisine. Return ONLY valid JSON.' },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Groq API request failed');
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '{}';
+    
+    let plan = null;
+    try {
+      const cleaned = content.replace(/```json\n?|\n?```/g, '').trim();
+      plan = JSON.parse(cleaned);
+      console.log('🍽️ Groq Diet Plan: Generated plan with', plan.totalCalories, 'calories');
+    } catch (parseError) {
+      console.error('Failed to parse Groq diet plan response:', content);
+      return res.status(500).json({ error: 'Failed to parse diet plan' });
+    }
+
+    res.json({
+      success: true,
+      plan: plan,
+      goal: goal,
+      source: 'groq'
+    });
+
+  } catch (error) {
+    console.error('Groq diet plan error:', error);
+    res.status(500).json({ error: 'Failed to generate diet plan' });
+  }
+});
+
 export default router;

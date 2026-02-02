@@ -16,8 +16,8 @@ import {
 } from 'lucide-react';
 import { Card, Button, ProgressBar } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
-import { userAPI, mealsAPI } from '../services/api';
-import { healthTips } from '../data/mockData';
+import { userAPI, mealsAPI, groqAPI } from '../services/api';
+import { healthTips as staticHealthTips } from '../data/mockData';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import './Dashboard.css';
 
@@ -30,6 +30,7 @@ function Dashboard() {
   const [weeklyData, setWeeklyData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [waterLoading, setWaterLoading] = useState(false);
+  const [healthTips, setHealthTips] = useState(staticHealthTips);
 
   const fetchDashboardData = async () => {
     try {
@@ -61,6 +62,26 @@ function Dashboard() {
       }
       
       setWeeklyData(chartData);
+      
+      // Fetch AI-generated health tips (with caching)
+      try {
+        // Check cache first
+        const cached = await userAPI.getCachedAI('health_tips');
+        if (cached.cached && cached.data?.length > 0) {
+          setHealthTips(cached.data);
+          console.log('💡 Using cached health tips');
+        } else {
+          // Fetch from AI
+          const tipsResult = await groqAPI.getHealthTips(user);
+          if (tipsResult.success && tipsResult.tips?.length > 0) {
+            setHealthTips(tipsResult.tips);
+            // Cache for 24 hours
+            await userAPI.setCachedAI('health_tips', tipsResult.tips, null, 24);
+          }
+        }
+      } catch (error) {
+        console.log('Using static health tips (AI unavailable)');
+      }
     } catch (error) {
       console.error('Error fetching dashboard:', error);
       // Set default values on error

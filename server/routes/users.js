@@ -252,4 +252,135 @@ router.get('/export', authenticate, async (req, res) => {
   }
 });
 
+// ========== DIET PLAN ENDPOINTS ==========
+
+// Save diet plan (start or save for later)
+router.post('/diet-plan', authenticate, async (req, res) => {
+  const { plan, planType, isActive } = req.body;
+  
+  try {
+    // If activating, deactivate other plans first
+    if (isActive) {
+      await pool.query(
+        'UPDATE user_diet_plans SET is_active = false WHERE user_id = $1',
+        [req.userId]
+      );
+    }
+    
+    const result = await pool.query(
+      `INSERT INTO user_diet_plans (user_id, plan_type, plan_data, is_active, created_at)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+       RETURNING *`,
+      [req.userId, planType, JSON.stringify(plan), isActive || false]
+    );
+    
+    res.json({ 
+      success: true, 
+      message: isActive ? 'Plan activated!' : 'Plan saved for later',
+      plan: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error saving diet plan:', error);
+    res.status(500).json({ error: 'Failed to save diet plan' });
+  }
+});
+
+// Get user's saved diet plans
+router.get('/diet-plans', authenticate, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM user_diet_plans 
+       WHERE user_id = $1 
+       ORDER BY created_at DESC`,
+      [req.userId]
+    );
+    
+    res.json({ 
+      success: true, 
+      plans: result.rows,
+      activePlan: result.rows.find(p => p.is_active) || null
+    });
+  } catch (error) {
+    console.error('Error fetching diet plans:', error);
+    res.status(500).json({ error: 'Failed to fetch diet plans' });
+  }
+});
+
+// Get active diet plan
+router.get('/diet-plan/active', authenticate, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM user_diet_plans 
+       WHERE user_id = $1 AND is_active = true
+       LIMIT 1`,
+      [req.userId]
+    );
+    
+    res.json({ 
+      success: true, 
+      plan: result.rows[0] || null
+    });
+  } catch (error) {
+    console.error('Error fetching active plan:', error);
+    res.status(500).json({ error: 'Failed to fetch active plan' });
+  }
+});
+
+// ========== AI CACHE ENDPOINTS ==========
+
+// Get cached AI response
+router.get('/ai-cache/:type', authenticate, async (req, res) => {
+  const { type } = req.params;
+  const { key } = req.query;
+  
+  try {
+    const result = await pool.query(
+      `SELECT cache_data, created_at FROM ai_cache 
+       WHERE user_id = $1 AND cache_type = $2 AND (cache_key = $3 OR cache_key IS NULL)
+       AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [req.userId, type, key || null]
+    );
+    
+    if (result.rows.length > 0) {
+      res.json({ 
+        success: true, 
+        cached: true,
+        data: result.rows[0].cache_data,
+        cachedAt: result.rows[0].created_at
+      });
+    } else {
+      res.json({ success: true, cached: false, data: null });
+    }
+  } catch (error) {
+    console.error('Error fetching AI cache:', error);
+    res.status(500).json({ error: 'Failed to fetch cached data' });
+  }
+});
+
+// Save to AI cache
+router.post('/ai-cache', authenticate, async (req, res) => {
+  const { type, key, data, expiresInHours } = req.body;
+  
+  try {
+    const expiresAt = expiresInHours 
+      ? new Date(Date.now() + expiresInHours * 60 * 60 * 1000)
+      : null;
+    
+    await pool.query(
+      `INSERT INTO ai_cache (user_id, cache_type, cache_key, cache_data, expires_at, created_at)
+       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+       ON CONFLICT (user_id, cache_type, cache_key) 
+       DO UPDATE SET cache_data = $4, expires_at = $5, created_at = CURRENT_TIMESTAMP`,
+      [req.userId, type, key || null, JSON.stringify(data), expiresAt]
+    );
+    
+    res.json({ success: true, message: 'Cached successfully' });
+  } catch (error) {
+    console.error('Error saving to AI cache:', error);
+    res.status(500).json({ error: 'Failed to cache data' });
+  }
+});
+
 export default router;

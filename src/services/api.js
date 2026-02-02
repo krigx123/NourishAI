@@ -91,6 +91,60 @@ export const userAPI = {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error);
     return data;
+  },
+
+  // Diet Plan methods
+  saveDietPlan: async (plan, planType, isActive = false) => {
+    const response = await fetch(`${API_BASE_URL}/users/diet-plan`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ plan, planType, isActive })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+    return data;
+  },
+
+  getDietPlans: async () => {
+    const response = await fetch(`${API_BASE_URL}/users/diet-plans`, {
+      headers: getAuthHeaders()
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+    return data;
+  },
+
+  getActiveDietPlan: async () => {
+    const response = await fetch(`${API_BASE_URL}/users/diet-plan/active`, {
+      headers: getAuthHeaders()
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+    return data;
+  },
+
+  // AI Cache methods
+  getCachedAI: async (type, key = null) => {
+    const url = key 
+      ? `${API_BASE_URL}/users/ai-cache/${type}?key=${encodeURIComponent(key)}`
+      : `${API_BASE_URL}/users/ai-cache/${type}`;
+    const response = await fetch(url, {
+      headers: getAuthHeaders()
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+    return data;
+  },
+
+  setCachedAI: async (type, data, key = null, expiresInHours = 24) => {
+    const response = await fetch(`${API_BASE_URL}/users/ai-cache`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ type, key, data, expiresInHours })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error);
+    return result;
   }
 };
 
@@ -275,6 +329,28 @@ export const groqAPI = {
       }
       throw new Error(data.error);
     }
+    return data;
+  },
+
+  getHealthTips: async (userProfile = null) => {
+    const response = await fetch(`${API_BASE_URL}/groq/health-tips`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ userProfile })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+    return data;
+  },
+
+  getDietPlan: async (goal, userProfile = null) => {
+    const response = await fetch(`${API_BASE_URL}/groq/diet-plan`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ goal, userProfile })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error);
     return data;
   }
 };
