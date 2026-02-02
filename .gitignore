@@ -40,3 +40,6 @@ coverage/
 # Dataset
 images/
 
+# Report file
+REPORT.md
+
