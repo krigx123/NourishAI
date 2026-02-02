@@ -59,9 +59,11 @@ ${detectionNote ? `CONTEXT: ${detectionNote}` : ''}
 ${cuisineHint}
 
 CRITICAL: Use the EXACT meal name "${primaryMeal}" as foodName. Do NOT change it to "Indian Meal".
+Estimate realistic nutritional values for a standard serving size. Do not use example values.
+(Replace <placeholders> with actual estimated numbers)
 
-Return JSON:
-{"foodName":"${primaryMeal}","calories":400,"protein":12,"carbs":60,"fat":10,"fiber":6,"serving":"1 serving","healthScore":70,"insight":"balanced meal","vitamins":["B6","C"],"minerals":["Iron","Potassium"]}`;
+Return JSON Structure:
+{"foodName":"${primaryMeal}","calories":<estimated_calories>,"protein":<grams>,"carbs":<grams>,"fat":<grams>,"fiber":<grams>,"serving":"1 serving","healthScore":<0-100>,"insight":"brief nutritional insight","vitamins":["Vitamin A","Vitamin C"],"minerals":["Iron","Calcium"]}`;
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -75,7 +77,7 @@ Return JSON:
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.0,
+        temperature: 0.2,
         max_tokens: 400,
         response_format: { type: 'json_object' }
       })
@@ -149,8 +151,8 @@ If query is vague, suggest common foods that match.`;
 
     const userPrompt = `Search foods matching: "${query}"
 
-Return JSON array:
-[{"name":"Food Name","calories":200,"protein":10,"carbs":30,"fat":8,"fiber":4,"serving":"1 cup (150g)","healthScore":75}]
+Return JSON array (Replace placeholders with estimated values):
+[{"name":"Similar Food","calories":<calories>,"protein":<grams>,"carbs":<grams>,"fat":<grams>,"fiber":<grams>,"serving":"1 cup","healthScore":<0-100>}]
 
 IMPORTANT: Return ONLY the JSON array, no explanation.`;
 

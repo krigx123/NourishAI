@@ -6,102 +6,15 @@ const router = express.Router();
 // ====== INDIAN FOOD DETECTION - PRIORITY-BASED SYSTEM ======
 
 // LEVEL 1: SPECIFIC INDIAN DISHES (highest priority - never downgrade)
-const SPECIFIC_DISHES = {
-  // Curries with specific names
-  'chana masala': { name: 'Chana Masala', type: 'CURRY', priority: 1 },
-  'chole': { name: 'Chole', type: 'CURRY', priority: 1 },
-  'rajma': { name: 'Rajma', type: 'CURRY', priority: 1 },
-  'paneer butter masala': { name: 'Paneer Butter Masala', type: 'CURRY', priority: 1 },
-  'butter chicken': { name: 'Butter Chicken', type: 'CURRY', priority: 1 },
-  'dal makhani': { name: 'Dal Makhani', type: 'DAL', priority: 1 },
-  'palak paneer': { name: 'Palak Paneer', type: 'CURRY', priority: 1 },
-  'aloo gobi': { name: 'Aloo Gobi', type: 'CURRY', priority: 1 },
-  'ghugni': { name: 'Ghugni', type: 'CURRY', priority: 1 },
-  'malai kofta': { name: 'Malai Kofta', type: 'CURRY', priority: 1 },
-  'kadai paneer': { name: 'Kadai Paneer', type: 'CURRY', priority: 1 },
-  'shahi paneer': { name: 'Shahi Paneer', type: 'CURRY', priority: 1 },
-  'matar paneer': { name: 'Matar Paneer', type: 'CURRY', priority: 1 },
-  'baingan bharta': { name: 'Baingan Bharta', type: 'CURRY', priority: 1 },
-  'sambar': { name: 'Sambar', type: 'CURRY', priority: 1 },
-  'rasam': { name: 'Rasam', type: 'CURRY', priority: 1 },
-  'korma': { name: 'Korma', type: 'CURRY', priority: 1 },
-  'biryani': { name: 'Biryani', type: 'RICE_DISH', priority: 1 },
-  'pulao': { name: 'Pulao', type: 'RICE_DISH', priority: 1 },
-  // Specific breads
-  'puri': { name: 'Puri', type: 'FRIED_BREAD', priority: 1 },
-  'bhatura': { name: 'Bhatura', type: 'FRIED_BREAD', priority: 1 },
-  'paratha': { name: 'Paratha', type: 'STUFFED_BREAD', priority: 1 },
-  'aloo paratha': { name: 'Aloo Paratha', type: 'STUFFED_BREAD', priority: 1 },
-  'naan': { name: 'Naan', type: 'BREAD', priority: 1 },
-  // Snacks
-  'dosa': { name: 'Dosa', type: 'SNACK', priority: 1 },
-  'idli': { name: 'Idli', type: 'SNACK', priority: 1 },
-  'vada': { name: 'Vada', type: 'SNACK', priority: 1 },
-  'uttapam': { name: 'Uttapam', type: 'SNACK', priority: 1 }
-};
-
-// LEVEL 2: BREAD TYPES (with disambiguation)
-const BREAD_TYPES = {
-  'puri': { name: 'Puri', category: 'FRIED_BREAD' },
-  'bhatura': { name: 'Bhatura', category: 'FRIED_BREAD' },
-  'naan': { name: 'Naan', category: 'LEAVENED_BREAD' },
-  'kulcha': { name: 'Kulcha', category: 'LEAVENED_BREAD' },
-  'paratha': { name: 'Paratha', category: 'STUFFED_BREAD' },
-  'roti': { name: 'Roti', category: 'FLAT_BREAD' },
-  'chapati': { name: 'Roti', category: 'FLAT_BREAD' },
-  'phulka': { name: 'Roti', category: 'FLAT_BREAD' },
-  'flatbread': { name: 'Roti', category: 'FLAT_BREAD' },
-  'jolada rotti': { name: 'Roti', category: 'FLAT_BREAD' },
-  'bajra roti': { name: 'Bajra Roti', category: 'FLAT_BREAD' },
-  'bhakri': { name: 'Bhakri', category: 'FLAT_BREAD' }
-};
-
 // Generic category keywords (lowest priority)
 const GENERIC_CURRY_KEYWORDS = ['curry', 'stew', 'gravy', 'masala'];
 const GENERIC_DAL_KEYWORDS = ['dal', 'daal', 'lentil'];
-const SKIP_LABELS = ['food', 'ingredient', 'recipe', 'dish', 'meal', 'cuisine', 'staple food', 'breakfast', 'lunch', 'dinner'];
-
-/**
- * Detect specific dishes from labels with confidence
- */
-function detectSpecificDishes(labels) {
-  const detected = [];
-  
-  for (const label of labels) {
-    const lower = label.name.toLowerCase();
-    
-    // Check for specific dishes
-    for (const [key, dish] of Object.entries(SPECIFIC_DISHES)) {
-      if (lower.includes(key) || key.includes(lower)) {
-        detected.push({
-          ...dish,
-          confidence: label.confidence,
-          original: label.name
-        });
-      }
-    }
-  }
-  
-  // Sort by confidence
-  return detected.sort((a, b) => b.confidence - a.confidence);
-}
-
-/**
- * Detect bread type from labels
- */
-function detectBreadType(labels) {
-  for (const label of labels) {
-    const lower = label.name.toLowerCase();
-    
-    // Check specific bread types first
-    for (const [key, bread] of Object.entries(BREAD_TYPES)) {
-      if (lower === key || lower.includes(key)) {
-        return { ...bread, confidence: label.confidence };
-      }
-    }
-  }
-  return null;
-}
+const SKIP_LABELS = [
+  'food', 'ingredient', 'recipe', 'dish', 'meal', 'cuisine', 'staple food', 
+  'breakfast', 'lunch', 'dinner', 'cooking', 'tableware', 'dishware', 
+  'plate', 'bowl', 'natural foods', 'comfort food', 'fast food', 
+  'produce', 'vegetable', 'fruit', 'serveware', 'condiment', 'garnish'
+];
 
 /**
  * Check if generic curry is present (but no specific dish)
@@ -122,7 +35,7 @@ function hasDal(labels) {
 }
 
 /**
- * MAIN PROCESSING FUNCTION - Priority-based detection
+ * MAIN PROCESSING FUNCTION - AI Confidence Based Detection
  */
 function processIndianMeal(labels) {
   // Filter out generic labels
@@ -130,140 +43,64 @@ function processIndianMeal(labels) {
     !SKIP_LABELS.includes(l.name.toLowerCase())
   );
   
-  // Step 1: Detect SPECIFIC dishes (Level 1 - highest priority)
-  const specificDishes = detectSpecificDishes(relevantLabels);
-  
-  // Step 2: Detect bread type
-  const breadType = detectBreadType(relevantLabels);
-  
-  // Step 3: Check for generic curry/dal
-  const genericCurry = hasGenericCurry(relevantLabels);
-  const dalPresent = hasDal(relevantLabels);
-  
   // Decision logic
   let primaryMeal = null;
   let alternatives = [];
   let detectionNote = '';
+
+  // STRATEGY: Find the most specific, highest confidence label
+  // We skip vague terms and take the best remaining candidate
   
-  if (specificDishes.length > 0) {
-    // LEVEL 1: Specific dish detected - use it!
-    const mainDish = specificDishes[0];
+  const bestCandidate = relevantLabels.find(l => {
+    const lower = l.name.toLowerCase();
+    // Additional generic check just in case
+    return !SKIP_LABELS.some(skip => lower === skip || lower.includes(`${skip} `));
+  });
+
+  // Check for Indian Context
+  const hasIndianContext = labels.some(l => {
+    const lower = l.name.toLowerCase();
+    return lower.includes('indian') || lower.includes('punjabi') || 
+           lower.includes('south indian') || lower.includes('north indian') ||
+           lower.includes('masala') || lower.includes('curry');
+  });
+
+  const genericCurry = hasGenericCurry(relevantLabels);
+  const dalPresent = hasDal(relevantLabels);
+
+  if (bestCandidate) {
+    primaryMeal = bestCandidate.name;
+    detectionNote = `Detected ${bestCandidate.name} (${bestCandidate.confidence}% confidence)`;
     
-    if (breadType && mainDish.type === 'CURRY') {
-      primaryMeal = `${mainDish.name} + ${breadType.name}`;
-      alternatives.push({ name: mainDish.name, confidence: 'high' });
-      detectionNote = `Detected ${mainDish.original} with ${breadType.name}`;
-    } else if (mainDish.type === 'RICE_DISH') {
-      primaryMeal = mainDish.name;
-      detectionNote = `Detected ${mainDish.original}`;
-    } else {
-      primaryMeal = mainDish.name;
-      if (breadType) {
-        primaryMeal = `${mainDish.name} + ${breadType.name}`;
-      }
-      detectionNote = `Detected ${mainDish.original}`;
-    }
-    
-    // Add other specific dishes as alternatives
-    specificDishes.slice(1, 3).forEach(d => {
-      alternatives.push({ name: d.name, confidence: d.confidence > 80 ? 'high' : 'medium' });
-    });
-    
-  } else if (breadType && (genericCurry || dalPresent)) {
-    // LEVEL 2: Generic combination - bread + curry/dal
-    if (dalPresent && !genericCurry) {
-      primaryMeal = `Dal + ${breadType.name}`;
-      alternatives.push({ name: `Sabzi + ${breadType.name}`, confidence: 'medium' });
-    } else {
-      primaryMeal = `Sabzi + ${breadType.name}`;
-      alternatives.push({ name: `Dal + ${breadType.name}`, confidence: 'medium' });
-    }
-    detectionNote = `Detected ${breadType.name} with curry/dal`;
-    
-  } else if (breadType) {
-    // Just bread detected
-    primaryMeal = breadType.name;
-    detectionNote = `Detected ${breadType.name}`;
-    
-  } else if (genericCurry || dalPresent) {
-    // Just curry/dal detected
-    primaryMeal = dalPresent ? 'Dal' : 'Sabzi';
-    detectionNote = 'Detected curry/dal without bread';
-    
-  } else {
-    // LEVEL 3: Smart high-confidence detection
-    // Accept ANY high-confidence label that's not generic
-    const recognizableFood = relevantLabels.find(l => {
-      const lower = l.name.toLowerCase();
-      const confidence = l.confidence;
-      
-      // Generic/vague labels to skip (already in SKIP_LABELS but check again)
-      const vagueLables = [
-        'food', 'ingredient', 'recipe', 'dish', 'meal', 'cuisine', 
-        'staple food', 'breakfast', 'lunch', 'dinner', 'cooking',
-        'tableware', 'dishware', 'plate', 'bowl', 'natural foods',
-        'comfort food', 'fast food', 'produce', 'vegetable', 'fruit'
-      ];
-      
-      // Skip if it's a vague label
-      if (vagueLables.some(vague => lower === vague || lower.includes(vague + ' '))) {
-        return false;
-      }
-      
-      // For 90%+ confidence, accept it directly (e.g., "Rice", "Tomato", "Paneer")
-      if (confidence >= 90) {
-        return true;
-      }
-      
-      // For 85-89% confidence, be more cautious - only accept if it's specific
-      // (Not something like "Spiced rice" or "Cherry tomato" - prefer simpler)
-      if (confidence >= 85 && !lower.includes(' ')) {
-        return true;
-      }
-      
-      return false;
-    });
-    
-    if (recognizableFood) {
-      // Use the food name directly
-      primaryMeal = recognizableFood.name;
-      detectionNote = `Detected ${recognizableFood.name} (${recognizableFood.confidence}% confidence)`;
-      alternatives.push({ name: 'Simple Food', confidence: 'high' });
-    } else {
-      // LEVEL 4: Neutral fallback - check for Indian context as qualifier
-      const hasIndianContext = labels.some(l => {
-        const lower = l.name.toLowerCase();
-        return lower.includes('indian') || lower.includes('punjabi') || 
-               lower.includes('south indian') || lower.includes('north indian');
+    // Add alternatives
+    relevantLabels
+      .filter(l => l.name !== bestCandidate.name)
+      .slice(0, 3)
+      .forEach(l => {
+        alternatives.push({ name: l.name, confidence: 'medium' });
       });
       
-      // Neutral primary meal, Indian only as qualifier
-      if (hasIndianContext) {
-        primaryMeal = 'Mixed Meal';
-        detectionNote = 'Indian-style cuisine detected';
-        alternatives.push({ name: 'Home-style Meal', confidence: 'low' });
-      } else {
-        primaryMeal = 'Mixed Meal';
-        detectionNote = 'Cuisine unclear';
-        alternatives.push({ name: 'Prepared Food', confidence: 'low' });
-      }
+  } else {
+    // Fallback if no specific food found
+    if (hasIndianContext) {
+      primaryMeal = 'Indian Mixed Meal';
+      detectionNote = 'Indian cuisine detected (specific dish unclear)';
+    } else {
+      primaryMeal = 'Mixed Meal';
+      detectionNote = 'Cuisine unclear';
     }
+    alternatives.push({ name: 'Prepared Food', confidence: 'low' });
   }
-  
-  // Determine if we have strong Indian indicators
-  const hasStrongIndianSignal = specificDishes.length > 0 || 
-    (breadType && ['Roti', 'Naan', 'Paratha', 'Puri'].includes(breadType.name)) ||
-    dalPresent;
   
   return {
     primaryMeal,
     alternatives,
     detectionNote,
-    specificDishes: specificDishes.map(d => d.name),
-    breadType: breadType?.name || null,
+    specificDishes: bestCandidate ? [bestCandidate.name] : [],
+    breadType: null, // Removed hardcoded bread logic, assuming AI will identify "Naan" if prominent
     hasGenericCurry: genericCurry,
     hasDal: dalPresent,
-    isIndianMeal: hasStrongIndianSignal,
+    isIndianMeal: hasIndianContext,
     processedLabels: relevantLabels.map(l => ({
       original: l.name,
       confidence: l.confidence
