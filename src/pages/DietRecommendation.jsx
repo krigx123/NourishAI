@@ -255,9 +255,10 @@ function DietRecommendation() {
           </div>
 
           <div className="meals-grid">
-            {Object.entries(currentPlan.meals).map(([mealType, meal]) => {
+            {['breakfast', 'lunch', 'snack', 'dinner'].map((mealType) => {
+              const meal = currentPlan.meals[mealType];
               if (!meal) return null;
-              const MealIcon = mealIcons[mealType.toLowerCase()] || Sun;
+              const MealIcon = mealIcons[mealType] || Sun;
               return (
                 <Card key={mealType} className={`meal-card ${mealType}`}>
                   <div className="meal-header">
